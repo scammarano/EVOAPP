@@ -69,6 +69,7 @@ $title = 'Dashboard - ' . APP_NAME;
                     <?php foreach ($instanceStats as $stat): ?>
                         <?php
                             $row = $stat['instance'] ?? $stat;
+                            $instanceId = $row['id'] ?? ($stat['instance']['id'] ?? null);
                             $slug = $row['slug'] ?? '';
                             $description = $row['description'] ?? '';
                             $isActive = (int)($row['is_active'] ?? 0) === 1;
@@ -126,6 +127,13 @@ $title = 'Dashboard - ' . APP_NAME;
                                    class="btn btn-primary btn-sm" target="_blank">
                                     Open
                                 </a>
+
+                                <?php if (Auth::hasPermission('instances.manage') && $instanceId): ?>
+                                    <a href="<?= $viewHelper->url('instances/edit') ?>&id=<?= $viewHelper->escape($instanceId) ?>"
+                                       class="btn btn-secondary btn-sm" style="margin-left: 0.5rem;">
+                                        Edit
+                                    </a>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>

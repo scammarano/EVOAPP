@@ -2,6 +2,7 @@
 use App\Core\Auth;
 use App\Core\View;
 $title = $title ?? APP_NAME;
+$currentInstanceSlug = $instance['slug'] ?? ($_GET['instance'] ?? '');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -11,7 +12,7 @@ $title = $title ?? APP_NAME;
     <title><?= $viewHelper->escape($title ?? APP_NAME) ?></title>
     <link rel="stylesheet" href="<?= $viewHelper->asset('css/app.css') ?>">
 </head>
-<body>
+<body data-instance="<?= $viewHelper->escape($currentInstanceSlug) ?>">
     <?php if (Auth::isLoggedIn()): ?>
         <div class="app-container">
             <!-- Sidebar -->

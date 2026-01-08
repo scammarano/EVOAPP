@@ -1,5 +1,5 @@
 <?php
-View::set('title', 'Access Denied - ' . APP_NAME);
+$title = 'Access Denied - ' . APP_NAME;
 ?>
 
 <div class="error-page" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--background);">
@@ -12,7 +12,7 @@ View::set('title', 'Access Denied - ' . APP_NAME);
         </p>
         
         <div style="display: flex; gap: 1rem; justify-content: center;">
-            <a href="<?= View::url('dashboard/index') ?>" class="btn btn-primary">
+            <a href="<?= $viewHelper->url('dashboard/index') ?>" class="btn btn-primary">
                 Go to Dashboard
             </a>
             <button onclick="history.back()" class="btn btn-secondary">
