@@ -18,21 +18,21 @@ $title = 'Contacts - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
         
         <div class="contacts-actions" style="display: flex; gap: 0.5rem;">
             <?php if (Auth::hasPermission('contacts.import')): ?>
-                <a href="<?= $viewHelper->url('contacts/import') ?>?instance=<?= $viewHelper->escape($instance['slug']) ?>" 
+                <a href="<?= $viewHelper->url('contacts/import') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?>" 
                    class="btn btn-secondary btn-sm">
                     📥 Import
                 </a>
             <?php endif; ?>
             
             <?php if (Auth::hasPermission('contacts.export')): ?>
-                <a href="<?= $viewHelper->url('contacts/export') ?>?instance=<?= $viewHelper->escape($instance['slug']) ?><?= $search ? '&search=' . urlencode($search) : '' ?>" 
+                <a href="<?= $viewHelper->url('contacts/export') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?><?= $search ? '&search=' . urlencode($search) : '' ?>" 
                    class="btn btn-secondary btn-sm">
                     📤 Export
                 </a>
             <?php endif; ?>
             
             <?php if (Auth::hasPermission('contacts.edit')): ?>
-                <a href="<?= $viewHelper->url('contacts/create') ?>?instance=<?= $viewHelper->escape($instance['slug']) ?>" 
+                <a href="<?= $viewHelper->url('contacts/create') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?>" 
                    class="btn btn-primary btn-sm">
                     + Add Contact
                 </a>
@@ -53,7 +53,7 @@ $title = 'Contacts - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
             <button type="submit" class="btn btn-primary">Search</button>
             
             <?php if ($search): ?>
-                <a href="<?= $viewHelper->url('contacts/index') ?>?instance=<?= $viewHelper->escape($instance['slug']) ?>" 
+                <a href="<?= $viewHelper->url('contacts/index') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?>" 
                    class="btn btn-secondary">
                     Clear
                 </a>
@@ -108,7 +108,7 @@ $title = 'Contacts - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
                 
                 <?php if (Auth::hasPermission('contacts.edit') && !$search): ?>
                     <div style="margin-top: 1rem;">
-                        <a href="<?= $viewHelper->url('contacts/create') ?>?instance=<?= $viewHelper->escape($instance['slug']) ?>" 
+                        <a href="<?= $viewHelper->url('contacts/create') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?>" 
                            class="btn btn-primary btn-sm">
                             Add Contact
                         </a>
@@ -161,13 +161,13 @@ $title = 'Contacts - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
                             <td>
                                 <div style="display: flex; gap: 0.25rem;">
                                     <?php if (Auth::hasPermission('contacts.edit')): ?>
-                                        <a href="<?= $viewHelper->url('contacts/edit') ?>?id=<?= $viewHelper->escape($contact['id']) ?>" 
+                                        <a href="<?= $viewHelper->url('contacts/edit') ?>&id=<?= $viewHelper->escape($contact['id']) ?>" 
                                            class="btn btn-secondary btn-sm" title="Edit">
                                             ✏️
                                         </a>
                                     <?php endif; ?>
                                     
-                                    <a href="<?= $viewHelper->url('inbox/index') ?>?instance=<?= $viewHelper->escape($instance['slug']) ?>" 
+                                    <a href="<?= $viewHelper->url('inbox/index') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?>" 
                                        class="btn btn-primary btn-sm" title="Send Message">
                                         💬
                                     </a>
@@ -188,7 +188,7 @@ $title = 'Contacts - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
                     ?>
                         <span class="btn btn-secondary" style="cursor: default;"><?= $i ?></span>
                         <?php else: ?>
-                        <a href="<?= $viewHelper->url('contacts/index') ?>?instance=<?= $viewHelper->escape($instance['slug']) ?>&page=<?= $i ?><?= $search ? '&search=' . urlencode($search) : '' ?>" 
+                        <a href="<?= $viewHelper->url('contacts/index') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?>&page=<?= $i ?><?= $search ? '&search=' . urlencode($search) : '' ?>" 
                            class="btn btn-secondary"><?= $i ?></a>
                         <?php endif; ?>
                     <?php endfor; ?>

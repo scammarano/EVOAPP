@@ -67,50 +67,62 @@ $title = 'Dashboard - ' . APP_NAME;
                 </thead>
                 <tbody>
                     <?php foreach ($instanceStats as $stat): ?>
+                        <?php
+                            $row = $stat['instance'] ?? $stat;
+                            $slug = $row['slug'] ?? '';
+                            $description = $row['description'] ?? '';
+                            $isActive = (int)($row['is_active'] ?? 0) === 1;
+
+                            $chats = (int)($stat['chat_count'] ?? $stat['chats'] ?? 0);
+                            $messageCount = (int)($stat['message_count'] ?? $stat['messages'] ?? 0);
+                            $totalUnread = (int)($stat['total_unread'] ?? $stat['unread_messages'] ?? 0);
+                            $todayMessages = (int)($stat['today_messages'] ?? 0);
+                            $lastActivity = $stat['last_webhook_at'] ?? $stat['last_activity'] ?? null;
+                        ?>
                         <tr>
                             <td>
                                 <div>
-                                    <strong><?= $viewHelper->escape($stat['instance']['slug']) ?></strong>
-                                    <?php if ($stat['instance']['description']): ?>
-                                        <br><small style="color: var(--text-secondary);"><?= $viewHelper->escape($stat['instance']['description']) ?></small>
+                                    <strong><?= $viewHelper->escape($slug) ?></strong>
+                                    <?php if ($description): ?>
+                                        <br><small style="color: var(--text-secondary);"><?= $viewHelper->escape($description) ?></small>
                                     <?php endif; ?>
                                 </div>
                             </td>
                             <td>
-                                <div class="instance-status <?= $stat['instance']['is_active'] ? 'active' : 'inactive' ?>">
+                                <div class="instance-status <?= $isActive ? 'active' : 'inactive' ?>">
                                     <span class="status-dot"></span>
-                                    <?= $stat['instance']['is_active'] ? 'Active' : 'Inactive' ?>
+                                    <?= $isActive ? 'Active' : 'Inactive' ?>
                                 </div>
                             </td>
-                            <td><?= $viewHelper->escape($stat['chats']) ?></td>
+                            <td><?= $viewHelper->escape($chats) ?></td>
                             <td>
-                                <?php if ($stat['total_unread'] > 0): ?>
+                                <?php if ($totalUnread > 0): ?>
                                     <span style="color: var(--error); font-weight: 500;">
-                                        <?= $viewHelper->escape($stat['total_unread']) ?>
+                                        <?= $viewHelper->escape($totalUnread) ?>
                                     </span>
                                 <?php else: ?>
                                     <span style="color: var(--success);">0</span>
                                 <?php endif; ?>
                             </td>
-                            <td><?= $viewHelper->escape(number_format($stat['message_count'])) ?></td>
+                            <td><?= $viewHelper->escape(number_format($messageCount)) ?></td>
                             <td>
-                                <?php if ($stat['message_count'] > 0): ?>
-                                    <span style="color: var(--primary-green);"><?= $viewHelper->escape($stat['message_count']) ?></span>
+                                <?php if ($todayMessages > 0): ?>
+                                    <span style="color: var(--primary-green);"><?= $viewHelper->escape($todayMessages) ?></span>
                                 <?php else: ?>
                                     <span style="color: var(--text-secondary);">0</span>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <?php if ($stat['last_webhook_at']): ?>
-                                    <span title="<?= $viewHelper->escape($stat['last_webhook_at']) ?>">
-                                        <?= $viewHelper->timeAgo($stat['last_webhook_at']) ?>
+                                <?php if ($lastActivity): ?>
+                                    <span title="<?= $viewHelper->escape($lastActivity) ?>">
+                                        <?= $viewHelper->timeAgo($lastActivity) ?>
                                     </span>
                                 <?php else: ?>
                                     <span style="color: var(--text-secondary);">Never</span>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <a href="<?= $viewHelper->url('inbox/index') ?>?instance=<?= $viewHelper->escape($stat['instance']['slug']) ?>" 
+                                <a href="<?= $viewHelper->url('inbox/index') ?>&instance=<?= $viewHelper->escape($slug) ?>" 
                                    class="btn btn-primary btn-sm" target="_blank">
                                     Open
                                 </a>
