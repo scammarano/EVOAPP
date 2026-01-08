@@ -1,0 +1,196 @@
+EVOAPP - Installation Guide
+============================
+
+QUICK INSTALLATION
+------------------
+
+1. Upload all files to your web directory (e.g., /public_html/evoapp/)
+2. Create MySQL database and import:
+   - database/evoapp_schema.sql
+   - database/initial_data.sql
+3. Edit config/config.php with your database and EvolutionAPI details
+4. Set up cron job: /usr/local/bin/php -q /path/to/evoapp/cron.php (every minute)
+5. Configure EvolutionAPI webhook: https://yoursite.com/evoapp/index.php?r=webhook/evolution&instance=SLUG
+6. Login: admin@evoapp.com / admin123
+
+DETAILED INSTALLATION
+---------------------
+
+PREREQUISITES
+-------------
+- PHP 8.1+ with PDO, cURL, JSON, mbstring extensions
+- MySQL 5.7+ or MariaDB 10.2+
+- cPanel or similar hosting environment
+- EvolutionAPI instance(s)
+
+STEP 1: FILE UPLOAD
+-------------------
+1. Extract the ZIP file to your local computer
+2. Using FTP or cPanel File Manager, upload all files to your desired directory
+3. Ensure the directory structure is preserved:
+   evoapp/
+   ├── app/
+   ├── assets/
+   ├── config/
+   ├── database/
+   ├── uploads/ (create this directory)
+   ├── index.php
+   ├── cron.php
+   └── .htaccess
+
+4. Set permissions:
+   - Directories: 755
+   - Files: 644
+   - uploads/: 755 (writable by web server)
+
+STEP 2: DATABASE SETUP
+----------------------
+1. Log in to cPanel and go to "MySQL Databases"
+2. Create a new database (e.g., "evoapp_db")
+3. Create a database user and assign it to the database with all privileges
+4. Go to "phpMyAdmin"
+5. Select your new database
+6. Click "Import" and upload:
+   - First: database/evoapp_schema.sql
+   - Second: database/initial_data.sql
+
+STEP 3: CONFIGURATION
+--------------------
+1. Copy config/config.php.example to config/config.php (if it doesn't exist)
+2. Edit config/config.php with a text editor:
+
+```php
+// Database settings
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'your_database_name');
+define('DB_USER', 'your_database_user');
+define('DB_PASS', 'your_database_password');
+
+// EvolutionAPI settings
+define('EVO_BASE_URL', 'https://your-evolution-api.com');
+define('APP_KEY', 'your-32-character-encryption-key-here');
+
+// Application settings
+define('APP_URL', 'https://yourdomain.com/evoapp');
+define('TIMEZONE', 'America/Bogota');
+define('DEBUG', false); // Set to true for troubleshooting
+```
+
+STEP 4: CRON JOB SETUP
+----------------------
+1. In cPanel, go to "Cron Jobs"
+2. Add a new cron job with these settings:
+   - Minute: *
+   - Hour: *
+   - Day: *
+   - Month: *
+   - Weekday: *
+   - Command: /usr/local/bin/php -q /home/username/public_html/evoapp/cron.php
+
+Note: Replace "/home/username/public_html/evoapp/" with your actual path.
+
+STEP 5: WEBHOOK CONFIGURATION
+-----------------------------
+For each EvolutionAPI instance:
+
+1. Log in to your EvolutionAPI admin panel
+2. Find your instance settings
+3. Set the webhook URL to:
+   https://yourdomain.com/evoapp/index.php?r=webhook/evolution&instance=YOUR_INSTANCE_SLUG
+
+4. If you have a webhook token/secret, configure it in the instance settings in EVOAPP
+
+STEP 6: FIRST LOGIN
+-------------------
+1. Open your browser and go to: https://yourdomain.com/evoapp/
+2. Login with:
+   - Email: admin@evoapp.com
+   - Password: admin123
+
+3. IMPORTANT: Change the default password immediately!
+
+STEP 7: ADD YOUR FIRST INSTANCE
+------------------------------
+1. Click "Add New Instance" or go to Instances section
+2. Fill in the details:
+   - Slug: A unique identifier (e.g., "main")
+   - Description: Optional description
+   - API Key: Your EvolutionAPI instance API key
+   - Base URL: Your EvolutionAPI URL (optional, uses EVO_BASE_URL if empty)
+   - Webhook Token: Optional webhook validation token
+
+3. Save the instance
+4. Test by going to Inbox and sending a message
+
+TROUBLESHOOTING
+---------------
+
+BLANK PAGE
+----------
+- Check that config/config.php exists and is readable
+- Verify database credentials are correct
+- Check PHP error logs in cPanel
+
+DATABASE CONNECTION ERROR
+------------------------
+- Verify database exists
+- Check database user permissions
+- Ensure database user is assigned to the database
+
+WEBHOOK NOT WORKING
+------------------
+- Verify webhook URL is accessible from EvolutionAPI server
+- Check if firewall is blocking requests
+- Review webhook logs in EVOAPP Debug section
+
+MESSAGES NOT SENDING
+--------------------
+- Verify EvolutionAPI is running
+- Check instance API key is correct
+- Test EvolutionAPI endpoints directly
+
+CRON JOB NOT RUNNING
+-------------------
+- Verify cron job command path is correct
+- Check cron job email output for errors
+- Ensure PHP CLI is available at specified path
+
+PERMISSION ISSUES
+---------------
+- uploads/ directory must be writable (755)
+- Check file ownership (should be web server user)
+- Verify .htaccess is being processed
+
+SECURITY RECOMMENDATIONS
+------------------------
+
+1. IMMEDIATELY:
+   - Change default admin password
+   - Use strong database credentials
+   - Enable HTTPS (SSL certificate)
+
+2. ONGOING:
+   - Keep PHP and system updated
+   - Monitor logs regularly
+   - Backup database frequently
+   - Review user permissions
+
+3. OPTIONAL:
+   - Configure firewall rules
+   - Set up intrusion detection
+   - Use fail2ban for brute force protection
+   - Regular security audits
+
+SUPPORT
+-------
+
+For technical support:
+1. Check the Debug section in EVOAPP
+2. Review error logs in cPanel
+3. Verify EvolutionAPI is working independently
+4. Test database connection separately
+
+Default credentials should only be used for initial setup and testing.
+Change them immediately in production environment.
+
+Enjoy using EVOAPP!

@@ -1,0 +1,44 @@
+<?php
+/**
+ * EVOAPP Configuration
+ */
+
+// Database
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'evoapp');
+define('DB_USER', '');
+define('DB_PASS', '');
+
+// EvolutionAPI
+define('EVO_BASE_URL', 'https://your-evolution-api.com');
+define('APP_KEY', 'your-32-character-encryption-key-here');
+
+// Application
+define('APP_NAME', 'EVOAPP');
+define('APP_URL', 'https://yourdomain.com/evoapp');
+define('TIMEZONE', 'America/Bogota');
+define('DEBUG', true);
+
+// Security
+define('SESSION_LIFETIME', 7200); // 2 hours
+define('CSRF_TOKEN_NAME', 'csrf_token');
+
+// Pagination
+define('CHATS_PER_PAGE', 15);
+define('MESSAGES_PER_PAGE', 25);
+
+// File uploads
+define('MAX_UPLOAD_SIZE', 10 * 1024 * 1024); // 10MB
+define('UPLOAD_PATH', __DIR__ . '/../uploads');
+
+// Timezone
+date_default_timezone_set(TIMEZONE);
+
+// Error reporting
+if (DEBUG) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+} else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+}
