@@ -5,19 +5,29 @@ use App\Core\DB;
 
 class Instance
 {
+    private static $resolvedTable = null;
+
+    public static function tableName()
+    {
+        return 'evo_instances';
+    }
+
     public static function findBySlug($slug)
     {
-        return DB::fetch("SELECT * FROM instances WHERE slug = ?", [$slug]);
+        $table = self::tableName();
+        return DB::fetch("SELECT * FROM {$table} WHERE slug = ?", [$slug]);
     }
     
     public static function findById($id)
     {
-        return DB::fetch("SELECT * FROM instances WHERE id = ?", [$id]);
+        $table = self::tableName();
+        return DB::fetch("SELECT * FROM {$table} WHERE id = ?", [$id]);
     }
     
     public static function getAll($activeOnly = true)
     {
-        $sql = "SELECT * FROM instances";
+        $table = self::tableName();
+        $sql = "SELECT * FROM {$table}";
         $params = [];
         
         if ($activeOnly) {
@@ -31,8 +41,9 @@ class Instance
     
     public static function create($data)
     {
+        $table = self::tableName();
         DB::q("
-            INSERT INTO instances (slug, description, is_active, api_key, base_url, webhook_token, webhook_enabled, created_at, updated_at)
+            INSERT INTO {$table} (slug, description, is_active, api_key, base_url, webhook_token, webhook_enabled, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ", [
             $data['slug'],
@@ -49,6 +60,7 @@ class Instance
     
     public static function update($id, $data)
     {
+        $table = self::tableName();
         $fields = [];
         $params = [];
         
@@ -65,18 +77,20 @@ class Instance
             $fields[] = "updated_at = NOW()";
             $params[] = $id;
             
-            DB::q("UPDATE instances SET " . implode(', ', $fields) . " WHERE id = ?", $params);
+            DB::q("UPDATE {$table} SET " . implode(', ', $fields) . " WHERE id = ?", $params);
         }
     }
     
     public static function delete($id)
     {
-        DB::q("DELETE FROM instances WHERE id = ?", [$id]);
+        $table = self::tableName();
+        DB::q("DELETE FROM {$table} WHERE id = ?", [$id]);
     }
     
     public static function getAccessibleInstances($userId = null)
     {
-        $sql = "SELECT * FROM instances";
+        $table = self::tableName();
+        $sql = "SELECT * FROM {$table}";
         $params = [];
         
         // For now, return all instances (we'll add permissions later)
@@ -84,36 +98,189 @@ class Instance
             // TODO: Add user permissions logic
         }
         
-        $sql .= " WHERE is_active = 1 ORDER BY slug";
+        $sql .= " ORDER BY slug";
         
         return DB::fetchAll($sql, $params);
     }
     
     public static function getStats()
     {
-        return DB::fetchAll("
-            SELECT 
-                i.id,
-                i.slug,
-                i.description,
-                i.is_active,
-                i.last_webhook_at,
-                COUNT(DISTINCT c.id) as chat_count,
-                COUNT(DISTINCT CASE WHEN c.unread_count > 0 THEN c.id END) as unread_chats,
-                COUNT(DISTINCT m.id) as message_count,
-                MAX(m.ts) as last_message_at,
-                SUM(c.unread_count) as total_unread
-            FROM instances i
-            LEFT JOIN chats c ON i.id = c.instance_id
-            LEFT JOIN messages m ON c.id = m.chat_id
-            GROUP BY i.id, i.slug, i.description, i.is_active, i.last_webhook_at
-            ORDER BY i.slug
-        ");
+        $table = self::tableName();
+        
+        try {
+            // Enhanced query with real stats
+            $sql = "
+                SELECT i.*, 
+                       (SELECT COUNT(*) FROM chats WHERE instance_id = i.id) as chat_count,
+                       (SELECT COUNT(*) FROM messages m JOIN chats c ON m.chat_id = c.id WHERE c.instance_id = i.id) as message_count,
+                       0 as total_unread
+                FROM {$table} i
+                ORDER BY i.slug
+            ";
+            
+            return DB::fetchAll($sql);
+            
+        } catch (\Exception $e) {
+            // If tables don't exist, return empty stats
+            return [];
+        }
     }
     
-    public static function updateWebhookTimestamp($id)
+    public static function getInstanceProfile($instanceId)
     {
-        DB::q("UPDATE instances SET last_webhook_at = NOW() WHERE id = ?", [$id]);
+        $table = self::tableName();
+        return DB::fetch("SELECT * FROM instance_profiles WHERE instance_id = ?", [$instanceId]);
+    }
+    
+    public static function saveInstanceProfile($instanceId, $profileData)
+    {
+        $table = 'instance_profiles';
+        
+        // Check if profile exists
+        $existing = DB::fetch("SELECT id FROM {$table} WHERE instance_id = ?", [$instanceId]);
+        
+        if ($existing) {
+            // Update existing profile
+            $sql = "UPDATE {$table} SET 
+                        profile_image_url = ?, 
+                        description = ?, 
+                        updated_at = NOW() 
+                    WHERE instance_id = ?";
+            
+            DB::q($sql, [
+                $profileData['profile_image_url'] ?? null,
+                $profileData['description'] ?? null,
+                $instanceId
+            ]);
+            
+            return $existing['id'];
+        } else {
+            // Insert new profile
+            $sql = "INSERT INTO {$table} (instance_id, profile_image_url, description, created_at, updated_at) 
+                    VALUES (?, ?, ?, NOW(), NOW())";
+            
+            DB::q($sql, [
+                $instanceId,
+                $profileData['profile_image_url'] ?? null,
+                $profileData['description'] ?? null
+            ]);
+            
+            return DB::lastInsertId();
+        }
+    }
+    
+    public static function getWithRelations($id)
+    {
+        $table = self::tableName();
+        
+        try {
+            $sql = "
+                SELECT i.*, 
+                       u.name as created_by_name,
+                       u.email as created_by_email
+                FROM {$table} i
+                LEFT JOIN users u ON u.id = i.created_by
+                WHERE i.id = ?
+            ";
+            
+            return DB::fetch($sql, [$id]);
+            
+        } catch (\Exception $e) {
+            // If tables don't exist, return basic instance data
+            return self::findById($id);
+        }
+    }
+    
+    public static function getChats($instanceId, $page = 1, $limit = 50)
+    {
+        $table = 'chats';
+        $offset = ($page - 1) * $limit;
+        
+        $sql = "
+            SELECT c.*, 
+                   COUNT(m.id) as message_count,
+                   COUNT(cr.id) as unread_count
+            FROM {$table} c
+            LEFT JOIN messages m ON m.chat_id = c.id
+            LEFT JOIN chat_reads cr ON cr.chat_id = c.id AND cr.user_id = ?
+            WHERE c.instance_id = ?
+            GROUP BY c.id
+            ORDER BY c.last_message_at DESC
+            LIMIT ? OFFSET ?
+        ";
+        
+        return DB::fetchAll($sql, [$_SESSION['user_id'] ?? null, $instanceId, $limit, $offset]);
+    }
+    
+    public static function getMessages($instanceId, $chatId, $page = 1, $limit = 50)
+    {
+        $table = 'messages';
+        $offset = ($page - 1) * $limit;
+        
+        $sql = "
+            SELECT m.*, 
+                   c.title as chat_title,
+                   c.is_group as chat_is_group
+            FROM {$table} m
+            LEFT JOIN chats c ON c.id = m.chat_id
+            WHERE m.instance_id = ? AND m.chat_id = ?
+            ORDER BY m.ts DESC
+            LIMIT ? OFFSET ?
+        ";
+        
+        return DB::fetchAll($sql, [$instanceId, $chatId, $limit, $offset]);
+    }
+    
+    public static function getContacts($instanceId, $page = 1, $limit = 50)
+    {
+        $table = 'contacts';
+        $offset = ($page - 1) * $limit;
+        
+        $sql = "
+            SELECT * FROM {$table}
+            WHERE instance_id = ?
+            ORDER BY name ASC
+            LIMIT ? OFFSET ?
+        ";
+        
+        return DB::fetchAll($sql, [$instanceId, $limit, $offset]);
+    }
+    
+    public static function getContactLists($instanceId, $page = 1, $limit = 50)
+    {
+        $table = 'contact_lists';
+        $offset = ($page - 1) * $limit;
+        
+        $sql = "
+            SELECT cl.*, 
+                   COUNT(cli.id) as contact_count
+            FROM {$table} cl
+            LEFT JOIN contact_list_items cli ON cli.list_id = cl.id
+            WHERE cl.instance_id = ?
+            GROUP BY cl.id
+            ORDER BY cl.name ASC
+            LIMIT ? OFFSET ?
+        ";
+        
+        return DB::fetchAll($sql, [$instanceId, $limit, $offset]);
+    }
+    
+    public static function getCampaigns($instanceId, $page = 1, $limit = 20)
+    {
+        $table = 'campaigns';
+        $offset = ($page - 1) * $limit;
+        
+        $sql = "
+            SELECT c.*, 
+                   u.name as created_by_name
+            FROM {$table} c
+            LEFT JOIN users u ON u.id = c.created_by
+            WHERE c.instance_id = ?
+            ORDER BY c.created_at DESC
+            LIMIT ? OFFSET ?
+        ";
+        
+        return DB::fetchAll($sql, [$instanceId, $limit, $offset]);
     }
     
     // Evolution API client wrapper
@@ -244,6 +411,226 @@ class Instance
             {
                 return $this->request('GET', "/group/participants/$instanceSlug?groupJid=" . urlencode($groupJid));
             }
+            
+            // Profile and Status methods (Evolution API v2.3.7)
+            public function getProfile($instanceSlug)
+            {
+                return $this->request('GET', "/profile/$instanceSlug");
+            }
+            
+            public function updateProfilePicture($instanceSlug, $imagePath)
+            {
+                $url = $this->baseUrl . "/profile/picture/$instanceSlug";
+                
+                $headers = [
+                    'apikey: ' . $this->apiKey
+                ];
+                
+                $postFields = [
+                    'picture' => new \CURLFile($imagePath, mime_content_type($imagePath), basename($imagePath))
+                ];
+                
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+                curl_close($ch);
+                
+                if ($error) {
+                    throw new \Exception("CURL Error: $error");
+                }
+                
+                $responseData = json_decode($response, true);
+                
+                if ($httpCode >= 400) {
+                    throw new \Exception("API Error [$httpCode]: " . ($responseData['message'] ?? 'Unknown error'));
+                }
+                
+                return $responseData;
+            }
+            
+            public function getStatus($instanceSlug)
+            {
+                return $this->request('GET', "/status/$instanceSlug");
+            }
+            
+            public function updateStatus($instanceSlug, $content, $type = 'text', $caption = null)
+            {
+                $data = [
+                    'type' => $type,
+                    'content' => $content
+                ];
+                
+                if ($caption) {
+                    $data['caption'] = $caption;
+                }
+                
+                return $this->request('POST', "/status/$instanceSlug", $data);
+            }
+            
+            public function updateStatusImage($instanceSlug, $imagePath, $caption = null)
+            {
+                $url = $this->baseUrl . "/status/$instanceSlug";
+                
+                $headers = [
+                    'apikey: ' . $this->apiKey
+                ];
+                
+                $postFields = [
+                    'type' => 'image',
+                    'image' => new \CURLFile($imagePath, mime_content_type($imagePath), basename($imagePath))
+                ];
+                
+                if ($caption) {
+                    $postFields['caption'] = $caption;
+                }
+                
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+                curl_close($ch);
+                
+                if ($error) {
+                    throw new \Exception("CURL Error: $error");
+                }
+                
+                $responseData = json_decode($response, true);
+                
+                if ($httpCode >= 400) {
+                    throw new \Exception("API Error [$httpCode]: " . ($responseData['message'] ?? 'Unknown error'));
+                }
+                
+                return $responseData;
+            }
+            
+            public function scheduleStatus($instanceSlug, $content, $scheduledAt, $type = 'text', $caption = null)
+            {
+                $data = [
+                    'type' => $type,
+                    'content' => $content,
+                    'scheduledAt' => $scheduledAt
+                ];
+                
+                if ($caption) {
+                    $data['caption'] = $caption;
+                }
+                
+                return $this->request('POST', "/schedule/status/$instanceSlug", $data);
+            }
+            
+            public function scheduleStatusImage($instanceSlug, $imagePath, $scheduledAt, $caption = null)
+            {
+                $url = $this->baseUrl . "/schedule/status/$instanceSlug";
+                
+                $headers = [
+                    'apikey: ' . $this->apiKey
+                ];
+                
+                $postFields = [
+                    'type' => 'image',
+                    'image' => new \CURLFile($imagePath, mime_content_type($imagePath), basename($imagePath)),
+                    'scheduledAt' => $scheduledAt
+                ];
+                
+                if ($caption) {
+                    $postFields['caption'] = $caption;
+                }
+                
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+                curl_close($ch);
+                
+                if ($error) {
+                    throw new \Exception("CURL Error: $error");
+                }
+                
+                $responseData = json_decode($response, true);
+                
+                if ($httpCode >= 400) {
+                    throw new \Exception("API Error [$httpCode]: " . ($responseData['message'] ?? 'Unknown error'));
+                }
+                
+                return $responseData;
+            }
+            
+            public function deleteStatus($instanceSlug)
+            {
+                return $this->request('DELETE', "/status/$instanceSlug");
+            }
         };
+    }
+    
+    public static function saveScheduledStatus($instanceId, $statusData)
+    {
+        $table = 'instance_status_scheduled';
+        $fields = ['instance_id', 'content_type', 'content', 'scheduled_at'];
+        $params = [$instanceId, $statusData['content_type'], $statusData['content'], $statusData['scheduled_at']];
+        
+        if (isset($statusData['caption'])) {
+            $fields[] = 'caption';
+            $params[] = $statusData['caption'];
+        }
+        
+        $sql = "INSERT INTO {$table} (" . implode(', ', $fields) . ") VALUES (" . str_repeat('?,', count($params)) . ")";
+        DB::q($sql, $params);
+    }
+    
+    public static function getScheduledStatuses($instanceId, $limit = 10)
+    {
+        $table = 'instance_status_scheduled';
+        return DB::fetchAll("SELECT * FROM {$table} WHERE instance_id = ? ORDER BY scheduled_at DESC LIMIT ?", [$instanceId, $limit]);
+    }
+    
+    public static function updateScheduledStatus($statusId, $status, $errorText = null)
+    {
+        $table = 'instance_status_scheduled';
+        $fields = ['status = ?', 'sent_at = ?'];
+        $params = [$status, $status ? 'NOW()' : null];
+        
+        if ($errorText) {
+            $fields[] = 'error_text = ?';
+            $params[] = $errorText;
+        }
+        
+        $params[] = $statusId;
+        
+        $sql = "UPDATE {$table} SET " . implode(', ', $fields) . " WHERE id = ?";
+        DB::q($sql, $params);
+    }
+    
+    public static function deleteScheduledStatus($statusId)
+    {
+        $table = 'instance_status_scheduled';
+        DB::q("DELETE FROM {$table} WHERE id = ?", [$statusId]);
     }
 }

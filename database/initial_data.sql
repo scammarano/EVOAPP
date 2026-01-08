@@ -34,13 +34,24 @@ INSERT INTO `permissions` (`id`, `key`, `description`) VALUES
 (17, 'logs.view', 'Ver logs de depuración'),
 (18, 'debug.test', 'Probar funcionalidades de depuración'),
 (19, 'users.manage', 'Gestionar usuarios'),
-(20, 'audit.view', 'Ver log de auditoría');
+(20, 'audit.view', 'Ver log de auditoría'),
+
+(21, 'users.view', 'Ver usuarios'),
+(22, 'users.create', 'Crear usuarios'),
+(23, 'users.edit', 'Editar usuarios'),
+(24, 'users.toggle_active', 'Activar/Desactivar usuarios'),
+
+(25, 'roles.view', 'Ver roles'),
+(26, 'roles.create', 'Crear roles'),
+(27, 'roles.edit', 'Editar roles'),
+(28, 'roles.assign_permissions', 'Asignar permisos a roles');
 
 -- Assign permissions to roles
 -- Admin: all permissions
 INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES
 (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10),
-(1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20);
+(1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20),
+(1, 21), (1, 22), (1, 23), (1, 24), (1, 25), (1, 26), (1, 27), (1, 28);
 
 -- Supervisor: most permissions except user management
 INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES

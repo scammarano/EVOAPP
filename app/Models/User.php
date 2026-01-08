@@ -36,6 +36,61 @@ class User
 
         return array_map('intval', array_column($rows, 'role_id'));
     }
+
+    public static function getPrimaryRoleId($userId)
+    {
+        $row = DB::fetch("SELECT role_id FROM user_roles WHERE user_id = ? LIMIT 1", [$userId]);
+        return $row ? (int)$row['role_id'] : null;
+    }
+
+    public static function setPrimaryRole($userId, $roleId)
+    {
+        DB::beginTransaction();
+        try {
+            DB::q("DELETE FROM user_roles WHERE user_id = ?", [$userId]);
+
+            if ($roleId) {
+                DB::q("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", [$userId, (int)$roleId]);
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollback();
+            throw $e;
+        }
+    }
+
+    public static function getInstanceIds($userId)
+    {
+        $rows = DB::fetchAll(
+            "SELECT instance_id FROM user_instances WHERE user_id = ? AND can_view = 1",
+            [$userId]
+        );
+
+        return array_map('intval', array_column($rows, 'instance_id'));
+    }
+
+    public static function setInstances($userId, $instanceIds)
+    {
+        $instanceIds = array_values(array_filter(array_map('intval', (array)$instanceIds)));
+
+        DB::beginTransaction();
+        try {
+            DB::q("DELETE FROM user_instances WHERE user_id = ?", [$userId]);
+
+            foreach ($instanceIds as $instanceId) {
+                DB::q(
+                    "INSERT INTO user_instances (user_id, instance_id, can_view, can_send) VALUES (?, ?, 1, 1)",
+                    [$userId, $instanceId]
+                );
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollback();
+            throw $e;
+        }
+    }
     
     public static function getPermissions($userId)
     {
@@ -93,11 +148,20 @@ class User
         
         $userId = DB::lastInsertId();
         
-        // Assign roles
-        if (!empty($data['roles'])) {
-            foreach ($data['roles'] as $roleId) {
-                DB::q("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", [$userId, $roleId]);
+        // Assign role (single)
+        if (!empty($data['role_id'])) {
+            self::setPrimaryRole($userId, (int)$data['role_id']);
+        } elseif (!empty($data['roles'])) {
+            // Backward compatibility
+            $firstRoleId = (int)array_values((array)$data['roles'])[0];
+            if ($firstRoleId) {
+                self::setPrimaryRole($userId, $firstRoleId);
             }
+        }
+
+        // Assign instances
+        if (isset($data['instances'])) {
+            self::setInstances($userId, $data['instances']);
         }
         
         return $userId;
@@ -135,12 +199,18 @@ class User
             DB::q("UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?", $params);
         }
         
-        // Update roles
-        if (isset($data['roles'])) {
-            DB::q("DELETE FROM user_roles WHERE user_id = ?", [$userId]);
-            foreach ($data['roles'] as $roleId) {
-                DB::q("INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)", [$userId, $roleId]);
-            }
+        // Update role (single)
+        if (array_key_exists('role_id', $data)) {
+            self::setPrimaryRole($userId, $data['role_id']);
+        } elseif (isset($data['roles'])) {
+            // Backward compatibility
+            $firstRoleId = (int)array_values((array)$data['roles'])[0];
+            self::setPrimaryRole($userId, $firstRoleId ?: null);
+        }
+
+        // Update instances
+        if (array_key_exists('instances', $data)) {
+            self::setInstances($userId, $data['instances']);
         }
     }
     

@@ -14,12 +14,23 @@ class EVOAPP {
 
     init() {
         this.initCurrentInstance();
+        if (window.evoappInitialChat && window.evoappInitialChat.id && window.evoappInitialChat.remoteJid) {
+            this.currentChat = {
+                id: String(window.evoappInitialChat.id),
+                remoteJid: String(window.evoappInitialChat.remoteJid)
+            };
+        }
         this.setupEventListeners();
         this.startPolling();
     }
 
     initCurrentInstance() {
         try {
+            if (window.evoappInitialInstance) {
+                this.currentInstance = window.evoappInitialInstance;
+                return;
+            }
+
             const params = new URLSearchParams(window.location.search);
             const instanceFromQuery = params.get('instance');
             if (instanceFromQuery) {
@@ -441,7 +452,7 @@ class EVOAPP {
                 this.updateChatList(event);
                 
                 // If it's the current chat, add message
-                if (event.remote_jid === this.currentChat?.remote_jid) {
+                if (event.remote_jid === this.currentChat?.remoteJid) {
                     this.addNewMessage(event);
                 }
             }
@@ -499,7 +510,7 @@ class EVOAPP {
 
     refreshChatList() {
         // Reload the entire chat list
-        window.location.reload();
+        window.location.href = window.location.pathname + window.location.search;
     }
 
     getMessageType(message) {

@@ -13,15 +13,18 @@ class Campaign
     public static function create($data)
     {
         DB::q("
-            INSERT INTO campaigns (instance_id, name, is_active, schedule_type, start_at, end_at, timezone, weekly_days, monthly_day, next_run_at, created_by, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+            INSERT INTO campaigns (instance_id, name, is_active, schedule_type, start_date, start_time, end_date, end_time, daily_time, timezone, weekly_days, monthly_day, next_run_at, created_by, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ", [
             $data['instance_id'],
             $data['name'],
             $data['is_active'] ?? 1,
             $data['schedule_type'],
-            $data['start_at'],
-            $data['end_at'] ?? null,
+            $data['start_date'],
+            $data['start_time'],
+            $data['end_date'],
+            $data['end_time'],
+            $data['daily_time'] ?? null,
             $data['timezone'] ?? 'America/Bogota',
             $data['weekly_days'] ?? null,
             $data['monthly_day'] ?? null,
@@ -37,7 +40,7 @@ class Campaign
         $fields = [];
         $params = [];
         
-        $updatableFields = ['name', 'is_active', 'schedule_type', 'start_at', 'end_at', 'timezone', 'weekly_days', 'monthly_day', 'next_run_at'];
+        $updatableFields = ['name', 'is_active', 'schedule_type', 'start_date', 'start_time', 'end_date', 'end_time', 'timezone', 'weekly_days', 'monthly_day', 'next_run_at'];
         
         foreach ($updatableFields as $field) {
             if (isset($data[$field])) {
@@ -49,9 +52,9 @@ class Campaign
         if (!empty($fields)) {
             $fields[] = "updated_at = NOW()";
             $params[] = $id;
-            
-            DB::q("UPDATE campaigns SET " . implode(', ', $fields) . " WHERE id = ?", $params);
         }
+        
+        DB::q("UPDATE campaigns SET " . implode(', ', $fields) . " WHERE id = ?", $params);
     }
     
     public static function delete($id)
@@ -114,7 +117,24 @@ class Campaign
         
         switch ($campaign['schedule_type']) {
             case 'once':
-                return $campaign['start_at'];
+                return $campaign['start_date'] . ' ' . ($campaign['start_time'] ?? '00:00');
+                
+            case 'daily':
+                // Run every day at the specified time
+                if (!$campaign['start_time']) {
+                    return null;
+                }
+                
+                $nextRun = clone $now;
+                $startTime = new \DateTime($campaign['start_date'] . ' ' . $campaign['start_time'], new \DateTimeZone($timezone));
+                $nextRun->setTime($startTime->format('H'), $startTime->format('i'), 0);
+                
+                // If time has passed today, move to tomorrow
+                if ($nextRun <= $now) {
+                    $nextRun->modify('+1 day');
+                }
+                
+                return $nextRun->format('Y-m-d H:i:s');
                 
             case 'weekly':
                 if (!$campaign['weekly_days']) {
@@ -129,8 +149,8 @@ class Campaign
                     $dayOfWeek = (int)$nextRun->format('N'); // 1=Monday, 7=Sunday
                     
                     if (in_array($dayOfWeek, $days)) {
-                        // Set time from start_at
-                        $startTime = new \DateTime($campaign['start_at'], new \DateTimeZone($timezone));
+                        // Set time from start_date and start_time
+                        $startTime = new \DateTime($campaign['start_date'] . ' ' . ($campaign['start_time'] ?? '00:00'), new \DateTimeZone($timezone));
                         $nextRun->setTime($startTime->format('H'), $startTime->format('i'), 0);
                         
                         if ($nextRun > $now) {
@@ -140,7 +160,8 @@ class Campaign
                     
                     $nextRun->modify('+1 day');
                 }
-                break;
+                
+                return $nextRun->format('Y-m-d H:i:s');
                 
             case 'monthly':
                 if (!$campaign['monthly_day']) {
@@ -148,21 +169,20 @@ class Campaign
                 }
                 
                 $nextRun = clone $now;
+                $startTime = new \DateTime($campaign['start_date'] . ' ' . ($campaign['start_time'] ?? '00:00'), new \DateTimeZone($timezone));
                 $nextRun->setDate($nextRun->format('Y'), $nextRun->format('m'), $campaign['monthly_day']);
+                $nextRun->setTime($startTime->format('H'), $startTime->format('i'), 0);
                 
                 // If date has passed this month, move to next month
                 if ($nextRun <= $now) {
                     $nextRun->modify('+1 month');
                 }
                 
-                // Set time from start_at
-                $startTime = new \DateTime($campaign['start_at'], new \DateTimeZone($timezone));
-                $nextRun->setTime($startTime->format('H'), $startTime->format('i'), 0);
-                
                 return $nextRun->format('Y-m-d H:i:s');
+                
+            default:
+                return null;
         }
-        
-        return null;
     }
     
     public static function updateNextRun($id)

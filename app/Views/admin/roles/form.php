@@ -44,22 +44,42 @@ $isAdminRole = $isEdit && (($role['name'] ?? '') === 'admin');
 
         <div class="form-group">
             <label class="form-label">Permissions</label>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.5rem;">
-                <?php foreach ($permissions as $perm): ?>
-                    <?php $checked = in_array((int)$perm['id'], $selectedPermissionIds, true); ?>
-                    <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer; background: var(--background); border: 1px solid var(--border); padding: 0.5rem 0.75rem; border-radius: 0.5rem;">
-                        <input type="checkbox" name="permissions[]" value="<?= $viewHelper->escape($perm['id']) ?>" <?= $checked ? 'checked' : '' ?>>
-                        <span>
-                            <div style="color: var(--text-primary); font-weight: 500;">
-                                <?= $viewHelper->escape($perm['key']) ?>
-                            </div>
-                            <div style="color: var(--text-secondary); font-size: 0.875rem;">
-                                <?= $viewHelper->escape($perm['description'] ?? '') ?>
-                            </div>
-                        </span>
-                    </label>
-                <?php endforeach; ?>
-            </div>
+            <?php
+            $groups = [];
+            foreach (($permissions ?? []) as $perm) {
+                $key = (string)($perm['key'] ?? '');
+                $module = explode('.', $key)[0] ?: 'other';
+                if (!isset($groups[$module])) {
+                    $groups[$module] = [];
+                }
+                $groups[$module][] = $perm;
+            }
+            ksort($groups);
+            ?>
+
+            <?php foreach ($groups as $module => $perms): ?>
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        <?= $viewHelper->escape(strtoupper($module)) ?>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.5rem;">
+                        <?php foreach ($perms as $perm): ?>
+                            <?php $checked = in_array((int)$perm['id'], $selectedPermissionIds, true); ?>
+                            <label style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer; background: var(--background); border: 1px solid var(--border); padding: 0.5rem 0.75rem; border-radius: 0.5rem;">
+                                <input type="checkbox" name="permissions[]" value="<?= $viewHelper->escape($perm['id']) ?>" <?= $checked ? 'checked' : '' ?>>
+                                <span>
+                                    <div style="color: var(--text-primary); font-weight: 500;">
+                                        <?= $viewHelper->escape($perm['key']) ?>
+                                    </div>
+                                    <div style="color: var(--text-secondary); font-size: 0.875rem;">
+                                        <?= $viewHelper->escape($perm['description'] ?? '') ?>
+                                    </div>
+                                </span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
 
         <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">

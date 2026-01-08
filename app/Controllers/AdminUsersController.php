@@ -5,6 +5,7 @@ use App\Core\Auth;
 use App\Core\View;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Instance;
 
 class AdminUsersController
 {
@@ -39,10 +40,13 @@ class AdminUsersController
         }
 
         $roles = Role::getAll();
+        $instances = Instance::getAll(true);
 
         View::set('roles', $roles);
+        View::set('instances', $instances);
         View::set('user', null);
-        View::set('selectedRoleIds', []);
+        View::set('selectedRoleId', null);
+        View::set('selectedInstanceIds', []);
         View::render('admin/users/form');
     }
 
@@ -58,7 +62,8 @@ class AdminUsersController
         $name = trim($_POST['name'] ?? '');
         $password = $_POST['password'] ?? '';
         $isActive = isset($_POST['is_active']) ? 1 : 0;
-        $roleIds = $_POST['roles'] ?? [];
+        $roleId = (int)($_POST['role_id'] ?? 0);
+        $instanceIds = $_POST['instances'] ?? [];
 
         $errors = [];
         if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -73,10 +78,13 @@ class AdminUsersController
 
         if (!empty($errors)) {
             $roles = Role::getAll();
+            $instances = Instance::getAll(true);
             View::set('roles', $roles);
+            View::set('instances', $instances);
             View::set('errors', $errors);
             View::set('user', ['email' => $email, 'name' => $name, 'is_active' => $isActive]);
-            View::set('selectedRoleIds', array_map('intval', (array)$roleIds));
+            View::set('selectedRoleId', $roleId ?: null);
+            View::set('selectedInstanceIds', array_map('intval', (array)$instanceIds));
             View::render('admin/users/form');
             return;
         }
@@ -85,7 +93,8 @@ class AdminUsersController
             'email' => $email,
             'name' => $name,
             'password' => $password,
-            'roles' => array_map('intval', (array)$roleIds),
+            'role_id' => $roleId ?: null,
+            'instances' => $instanceIds,
         ]);
 
         if ($isActive === 0) {
@@ -118,11 +127,15 @@ class AdminUsersController
         }
 
         $roles = Role::getAll();
-        $selectedRoleIds = User::getRoleIds($id);
+        $instances = Instance::getAll(true);
+        $selectedRoleId = User::getPrimaryRoleId($id);
+        $selectedInstanceIds = User::getInstanceIds($id);
 
         View::set('roles', $roles);
+        View::set('instances', $instances);
         View::set('user', $user);
-        View::set('selectedRoleIds', $selectedRoleIds);
+        View::set('selectedRoleId', $selectedRoleId);
+        View::set('selectedInstanceIds', $selectedInstanceIds);
         View::render('admin/users/form');
     }
 
@@ -146,7 +159,8 @@ class AdminUsersController
         $name = trim($_POST['name'] ?? '');
         $password = $_POST['password'] ?? '';
         $isActive = isset($_POST['is_active']) ? 1 : 0;
-        $roleIds = $_POST['roles'] ?? [];
+        $roleId = (int)($_POST['role_id'] ?? 0);
+        $instanceIds = $_POST['instances'] ?? [];
 
         $errors = [];
         if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -158,10 +172,13 @@ class AdminUsersController
 
         if (!empty($errors)) {
             $roles = Role::getAll();
+            $instances = Instance::getAll(true);
             View::set('roles', $roles);
+            View::set('instances', $instances);
             View::set('errors', $errors);
             View::set('user', ['id' => $id, 'email' => $email, 'name' => $name, 'is_active' => $isActive]);
-            View::set('selectedRoleIds', array_map('intval', (array)$roleIds));
+            View::set('selectedRoleId', $roleId ?: null);
+            View::set('selectedInstanceIds', array_map('intval', (array)$instanceIds));
             View::render('admin/users/form');
             return;
         }
@@ -170,7 +187,8 @@ class AdminUsersController
             'email' => $email,
             'name' => $name,
             'is_active' => $isActive,
-            'roles' => array_map('intval', (array)$roleIds),
+            'role_id' => $roleId ?: null,
+            'instances' => $instanceIds,
         ];
 
         if ($password) {

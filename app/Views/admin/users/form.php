@@ -4,7 +4,8 @@ use App\Core\Auth;
 $isEdit = !empty($user) && !empty($user['id']);
 $title = 'Admin - ' . ($isEdit ? 'Edit User' : 'New User') . ' - ' . APP_NAME;
 $errors = $errors ?? [];
-$selectedRoleIds = $selectedRoleIds ?? [];
+$selectedRoleId = $selectedRoleId ?? null;
+$selectedInstanceIds = $selectedInstanceIds ?? [];
 ?>
 
 <div style="padding: 2rem; max-width: 800px;">
@@ -62,14 +63,26 @@ $selectedRoleIds = $selectedRoleIds ?? [];
         </div>
 
         <div class="form-group">
-            <label class="form-label">Roles</label>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem;">
+            <label class="form-label" for="role_id">Role</label>
+            <select class="form-input" id="role_id" name="role_id">
+                <option value="">— No role —</option>
                 <?php foreach ($roles as $role): ?>
-                    <?php $checked = in_array((int)$role['id'], $selectedRoleIds, true); ?>
+                    <option value="<?= $viewHelper->escape($role['id']) ?>" <?= ((int)$selectedRoleId === (int)$role['id']) ? 'selected' : '' ?>>
+                        <?= $viewHelper->escape($role['name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Instances (can view)</label>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.5rem;">
+                <?php foreach (($instances ?? []) as $inst): ?>
+                    <?php $checked = in_array((int)$inst['id'], $selectedInstanceIds, true); ?>
                     <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; background: var(--background); border: 1px solid var(--border); padding: 0.5rem 0.75rem; border-radius: 0.5rem;">
-                        <input type="checkbox" name="roles[]" value="<?= $viewHelper->escape($role['id']) ?>" <?= $checked ? 'checked' : '' ?>>
+                        <input type="checkbox" name="instances[]" value="<?= $viewHelper->escape($inst['id']) ?>" <?= $checked ? 'checked' : '' ?>>
                         <span style="color: var(--text-primary);">
-                            <?= $viewHelper->escape($role['name']) ?>
+                            <?= $viewHelper->escape($inst['slug']) ?>
                         </span>
                     </label>
                 <?php endforeach; ?>

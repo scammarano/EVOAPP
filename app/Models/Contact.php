@@ -212,4 +212,114 @@ class Contact
             WHERE instance_id = ?
         ", [$instanceId]);
     }
+    
+    // Contact sync methods
+    public static function createOrUpdateFromWhatsApp($contactData, $instanceId)
+    {
+        $table = 'contacts';
+        
+        // Extract contact data from WhatsApp format
+        $phone = self::formatPhone($contactData['id'] ?? '');
+        $name = $contactData['name'] ?? $contactData['pushname'] ?? $contactData['formattedName'] ?? 'Unknown';
+        $profilePicUrl = $contactData['profilePicUrl'] ?? null;
+        $isWhatsAppUser = isset($contactData['isWAContact']) ? (int)$contactData['isWAContact'] : 0;
+        
+        // Check if contact exists
+        $existing = self::findByPhone($phone);
+        
+        if ($existing) {
+            // Update existing contact
+            $sql = "UPDATE {$table} SET 
+                        name = ?, 
+                        profile_pic_url = ?, 
+                        is_whatsapp_user = ?, 
+                        updated_at = NOW() 
+                    WHERE id = ?";
+            
+            DB::q($sql, [
+                $name,
+                $profilePicUrl,
+                $isWhatsAppUser,
+                $existing['id']
+            ]);
+            
+            return ['updated' => true, 'id' => $existing['id']];
+        } else {
+            // Create new contact
+            $sql = "INSERT INTO {$table} (instance_id, phone, name, profile_pic_url, is_whatsapp_user, is_active, created_at, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())";
+            
+            DB::q($sql, [
+                $instanceId,
+                $phone,
+                $name,
+                $profilePicUrl,
+                $isWhatsAppUser
+            ]);
+            
+            return ['created' => true, 'id' => DB::lastInsertId()];
+        }
+    }
+    
+    public static function createOrUpdateGroupFromWhatsApp($groupData, $instanceId)
+    {
+        $table = 'contacts';
+        
+        // Extract group data from WhatsApp format
+        $phone = $groupData['id'] ?? '';
+        $name = $groupData['subject'] ?? 'Unknown Group';
+        $profilePicUrl = $groupData['profilePicUrl'] ?? null;
+        $isGroup = 1;
+        $participantCount = isset($groupData['participants']) ? count($groupData['participants']) : 0;
+        
+        // Check if group exists
+        $existing = self::findByPhone($phone);
+        
+        if ($existing) {
+            // Update existing group
+            $sql = "UPDATE {$table} SET 
+                        name = ?, 
+                        profile_pic_url = ?, 
+                        participant_count = ?, 
+                        updated_at = NOW() 
+                    WHERE id = ?";
+            
+            DB::q($sql, [
+                $name,
+                $profilePicUrl,
+                $participantCount,
+                $existing['id']
+            ]);
+            
+            return ['updated' => true, 'id' => $existing['id']];
+        } else {
+            // Create new group
+            $sql = "INSERT INTO {$table} (instance_id, phone, name, profile_pic_url, is_group, participant_count, is_active, created_at, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, 1, NOW(), NOW())";
+            
+            DB::q($sql, [
+                $instanceId,
+                $phone,
+                $name,
+                $profilePicUrl,
+                $isGroup,
+                $participantCount
+            ]);
+            
+            return ['created' => true, 'id' => DB::lastInsertId()];
+        }
+    }
+    
+    public static function getSyncStats($instanceId)
+    {
+        $table = 'contacts';
+        $sql = "SELECT 
+                    COUNT(*) as total_contacts,
+                    COUNT(CASE WHEN is_active = 1 THEN 1 END) as active_contacts,
+                    COUNT(CASE WHEN is_group = 1 THEN 1 END) as total_groups
+                 FROM {$table} 
+                 WHERE instance_id = ?";
+        
+        return DB::fetch($sql, [$instanceId]);
+    }
 }

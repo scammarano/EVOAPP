@@ -47,6 +47,16 @@ $title = 'Dashboard - ' . APP_NAME;
         </div>
     </div>
     
+    <!-- Diagnostic Section -->
+    <div class="instances-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="color: var(--text-primary);">System Diagnostic</h2>
+            <a href="index.php?r=diagnostic/index" class="btn btn-primary" style="text-decoration: none; padding: 0.5rem 1rem; background: #007bff; color: white; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.5rem;">
+                🔍 Test All Instances
+            </a>
+        </div>
+    </div>
+    
     <!-- Instances Table -->
     <div class="instances-section">
         <h2 style="margin-bottom: 1rem; color: var(--text-primary);">Instances</h2>

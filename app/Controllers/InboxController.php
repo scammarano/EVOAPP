@@ -12,6 +12,7 @@ class InboxController
     public function index()
     {
         $instanceSlug = $_GET['instance'] ?? '';
+        $chatId = (int)($_GET['chat_id'] ?? 0);
         
         if (!$instanceSlug) {
             header('Location: index.php?r=dashboard/index');
@@ -28,10 +29,25 @@ class InboxController
         // Get first page of chats
         $chats = Chat::getChatsByInstance($instance['id'], 1, CHATS_PER_PAGE);
         
+        // Get selected chat and messages if chat_id is provided
+        $selectedChat = null;
+        $messages = [];
+        
+        if ($chatId) {
+            $selectedChat = Chat::findById($chatId);
+            if ($selectedChat && $selectedChat['instance_id'] == $instance['id']) {
+                $messages = Message::getMessagesByChat($chatId, 1, MESSAGES_PER_PAGE);
+                
+                // Mark chat as read
+                $user = Auth::getCurrentUser();
+                Chat::markAsRead($chatId, $user['id']);
+            }
+        }
+        
         View::set('instance', $instance);
         View::set('chats', $chats);
-        View::set('selectedChat', null);
-        View::set('messages', []);
+        View::set('selectedChat', $selectedChat);
+        View::set('messages', $messages);
         
         View::render('inbox/index');
     }
@@ -141,7 +157,7 @@ class InboxController
             $result = $client->sendText($instanceSlug, $chat['remote_jid'], $text);
             
             // Log action
-            Auth::logAction('send_message', 'message', null, null, [
+            Auth::logAction('send_message', 'message', null, [
                 'chat_id' => $chatId,
                 'text' => $text,
                 'result' => $result
@@ -199,8 +215,10 @@ class InboxController
             return;
         }
         
-        if ($file['size'] > MAX_UPLOAD_SIZE) {
-            echo json_encode(['error' => 'File too large']);
+        // Check file size (10MB limit)
+        $maxSize = 10 * 1024 * 1024; // 10MB
+        if ($file['size'] > $maxSize) {
+            echo json_encode(['error' => 'File too large. Maximum size is 10MB']);
             return;
         }
         
@@ -223,9 +241,10 @@ class InboxController
             );
             
             // Log action
-            Auth::logAction('send_media', 'message', null, null, [
+            Auth::logAction('send_media', 'message', null, [
                 'chat_id' => $chatId,
                 'file' => $file['name'],
+                'type' => $mediaType,
                 'caption' => $caption,
                 'result' => $result
             ]);
@@ -233,6 +252,66 @@ class InboxController
             echo json_encode([
                 'success' => true,
                 'message' => 'Media sent successfully',
+                'result' => $result,
+                'file_info' => [
+                    'name' => $file['name'],
+                    'size' => $file['size'],
+                    'type' => $mediaType
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    public function sendEmojiAjax()
+    {
+        header('Content-Type: application/json');
+        
+        $instanceSlug = $_POST['instance'] ?? '';
+        $chatId = (int)($_POST['chat_id'] ?? 0);
+        $emoji = $_POST['emoji'] ?? '';
+        
+        if (!$instanceSlug || !$chatId || !$emoji) {
+            echo json_encode(['error' => 'Missing required fields']);
+            return;
+        }
+        
+        if (!Auth::hasPermission('inbox.send_text')) {
+            echo json_encode(['error' => 'No permission to send messages']);
+            return;
+        }
+        
+        $instance = Instance::findBySlug($instanceSlug);
+        if (!$instance || !Auth::canViewInstance($instance['id'])) {
+            echo json_encode(['error' => 'Unauthorized']);
+            return;
+        }
+        
+        $chat = Chat::findById($chatId);
+        if (!$chat || $chat['instance_id'] != $instance['id']) {
+            echo json_encode(['error' => 'Chat not found']);
+            return;
+        }
+        
+        try {
+            $client = Instance::evoClient($instance);
+            $result = $client->sendText($instanceSlug, $chat['remote_jid'], $emoji);
+            
+            // Log action
+            Auth::logAction('send_emoji', 'message', null, [
+                'chat_id' => $chatId,
+                'emoji' => $emoji,
+                'result' => $result
+            ]);
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Emoji sent successfully',
                 'result' => $result
             ]);
             

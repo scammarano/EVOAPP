@@ -92,13 +92,25 @@ class CampaignsController
             'name' => $_POST['name'] ?? '',
             'is_active' => isset($_POST['is_active']) ? 1 : 0,
             'schedule_type' => $_POST['schedule_type'] ?? 'once',
-            'start_at' => $_POST['start_at'] ?? '',
-            'end_at' => $_POST['end_at'] ?? null,
+            'start_date' => $_POST['start_date'] ?? '',
+            'start_time' => $_POST['start_time'] ?? '',
+            'end_date' => $_POST['end_date'] ?? '',
+            'end_time' => $_POST['end_time'] ?? '',
+            'daily_time' => $_POST['daily_time'] ?? '',
             'timezone' => $_POST['timezone'] ?? 'America/Bogota',
             'weekly_days' => $_POST['weekly_days'] ?? null,
             'monthly_day' => $_POST['monthly_day'] ?? null,
             'created_by' => $user['id']
         ];
+
+        // Combine date and time for database
+        if (!empty($data['start_date']) && !empty($data['start_time'])) {
+            $data['start_at'] = $data['start_date'] . ' ' . $data['start_time'];
+        }
+        
+        if (!empty($data['end_date']) && !empty($data['end_time'])) {
+            $data['end_at'] = $data['end_date'] . ' ' . $data['end_time'];
+        }
 
         // Calculate next run time
         $data['next_run_at'] = Campaign::calculateNextRun($data);
@@ -240,12 +252,33 @@ class CampaignsController
             'name' => $_POST['name'] ?? '',
             'is_active' => isset($_POST['is_active']) ? 1 : 0,
             'schedule_type' => $_POST['schedule_type'] ?? 'once',
-            'start_at' => $_POST['start_at'] ?? '',
-            'end_at' => $_POST['end_at'] ?? null,
+            'start_date' => $_POST['start_date'] ?? '',
+            'start_time' => $_POST['start_time'] ?? '',
+            'end_date' => $_POST['end_date'] ?? '',
+            'end_time' => $_POST['end_time'] ?? '',
+            'daily_time' => $_POST['daily_time'] ?? '',
             'timezone' => $_POST['timezone'] ?? 'America/Bogota',
             'weekly_days' => $_POST['weekly_days'] ?? null,
             'monthly_day' => $_POST['monthly_day'] ?? null
         ];
+
+        // Combine date and time for database
+        if (!empty($data['start_date']) && !empty($data['start_time'])) {
+            $data['start_at'] = $data['start_date'] . ' ' . $data['start_time'];
+        }
+        
+        if (!empty($data['end_date']) && !empty($data['end_time'])) {
+            $data['end_at'] = $data['end_date'] . ' ' . $data['end_time'];
+        }
+
+        // Combine date and time for database
+        if (!empty($data['start_date']) && !empty($data['start_time'])) {
+            $data['start_at'] = $data['start_date'] . ' ' . $data['start_time'];
+        }
+        
+        if (!empty($data['end_date']) && !empty($data['end_time'])) {
+            $data['end_at'] = $data['end_date'] . ' ' . $data['end_time'];
+        }
 
         // Calculate next run time
         $data['next_run_at'] = Campaign::calculateNextRun($data);
@@ -400,27 +433,7 @@ class CampaignsController
         }
 
         // Schedule validation
-        if (empty($data['start_at'])) {
-            $errors['start_at'] = 'La fecha de inicio es obligatoria';
-        } else {
-            $startDate = \DateTime::createFromFormat('Y-m-d\TH:i', $data['start_at']);
-            if (!$startDate) {
-                $errors['start_at'] = 'La fecha de inicio no es válida';
-            }
-        }
-
-        // End date validation (if provided)
-        if (!empty($data['end_at'])) {
-            $endDate = \DateTime::createFromFormat('Y-m-d\TH:i', $data['end_at']);
-            if (!$endDate) {
-                $errors['end_at'] = 'La fecha de fin no es válida';
-            } elseif ($startDate && $endDate <= $startDate) {
-                $errors['end_at'] = 'La fecha de fin debe ser posterior a la fecha de inicio';
-            }
-        }
-
-        // Schedule type validation
-        $validScheduleTypes = ['once', 'weekly', 'monthly'];
+        $validScheduleTypes = ['once', 'daily', 'weekly', 'monthly'];
         if (!in_array($data['schedule_type'], $validScheduleTypes)) {
             $errors['schedule_type'] = 'Tipo de programación no válido';
         }

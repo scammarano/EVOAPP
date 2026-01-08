@@ -10,7 +10,7 @@ define('DB_USER', 'grupoecc_toto');
 define('DB_PASS', 'Toto123*.A');
 
 // EvolutionAPI
-define('EVO_BASE_URL', 'https://eapi.camcam.com.ve');
+define('EVO_BASE_URL', 'https://evolutionapi-evolution-api.xs639b.easypanel.host');
 define('APP_KEY', '429683C4C977415CAAFCCE10F7D57E11');
 
 // Application

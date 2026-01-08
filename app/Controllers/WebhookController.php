@@ -1,6 +1,7 @@
 <?php
 namespace App\Controllers;
 
+use App\Core\Auth;
 use App\Models\Instance;
 use App\Models\Chat;
 use App\Models\Message;
@@ -9,6 +10,50 @@ use App\Core\DB;
 
 class WebhookController
 {
+    public function events()
+    {
+        header('Content-Type: application/json');
+
+        $instanceSlug = $_GET['instance'] ?? '';
+        $since = (int)($_GET['since'] ?? 0);
+
+        if (!$instanceSlug) {
+            echo json_encode(['success' => false, 'error' => 'Instance required']);
+            return;
+        }
+
+        $instance = Instance::findBySlug($instanceSlug);
+        if (!$instance || !Auth::canViewInstance($instance['id'])) {
+            echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+            return;
+        }
+
+        $events = WebhookEvent::getEventsSince($instance['id'], $since, 50);
+
+        $normalized = [];
+        foreach ($events as $evt) {
+            $payload = null;
+            if (!empty($evt['payload_json'])) {
+                $payload = json_decode($evt['payload_json'], true);
+            }
+
+            $normalized[] = [
+                'id' => (int)$evt['id'],
+                'event_type' => $evt['event_type'],
+                'remote_jid' => $evt['remote_jid'],
+                'message_id' => $evt['message_id'],
+                'participant_jid' => $evt['participant_jid'],
+                'payload' => $payload,
+                'received_at' => $evt['received_at'] ?? null,
+            ];
+        }
+
+        echo json_encode([
+            'success' => true,
+            'events' => $normalized,
+        ]);
+    }
+
     public function evolution()
     {
         header('Content-Type: application/json');

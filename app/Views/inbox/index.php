@@ -1,126 +1,1061 @@
 <?php
 use App\Core\Auth;
+use App\Models\Instance;
+
 $title = 'Inbox - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
+
+// Obtener estadísticas de la instancia
+$instanceStats = Instance::getStats();
+$selectedInstanceStats = null;
+foreach ($instanceStats as $stat) {
+    if ($stat['id'] == $instance['id']) {
+        $selectedInstanceStats = $stat;
+        break;
+    }
+}
+
+// Obtener perfil y estado actual de la instancia
+$instanceProfile = Instance::getInstanceProfile($instance['id']);
+$instanceStatus = null;
+if ($instanceProfile) {
+    try {
+        $evoClient = Instance::evoClient($instance);
+        $instanceStatus = $evoClient->getStatus($instance['slug']);
+    } catch (Exception $e) {
+        // Error al obtener estado desde API
+        $instanceStatus = null;
+    }
+}
 ?>
 
-<!-- Chat List -->
-<div class="chat-list" data-page="1">
-    <?php foreach ($chats as $chat): ?>
-        <div class="chat-item <?= ($selectedChat['id'] ?? null) == $chat['id'] ? 'active' : '' ?>" 
-             data-chat-id="<?= $viewHelper->escape($chat['id']) ?>" 
-             data-remote-jid="<?= $viewHelper->escape($chat['remote_jid']) ?>">
-            <div class="chat-avatar <?= $chat['is_group'] ? 'group' : '' ?>">
-                <span class="icon-<?= $chat['is_group'] ? 'group' : 'person' ?>"></span>
-            </div>
-            <div class="chat-info">
-                <div class="chat-name"><?= $viewHelper->escape($chat['title'] ?: $chat['remote_jid']) ?></div>
-                <div class="chat-last-message"><?= $viewHelper->escape($chat['last_snippet'] ?: '') ?></div>
-            </div>
-            <div class="chat-meta">
-                <div class="chat-time"><?= $viewHelper->timeAgo($chat['last_message_at']) ?></div>
-                <?php if ($chat['has_unread']): ?>
-                    <div class="chat-unread">!</div>
+<!-- Instance Header - Reducido -->
+<div class="instance-header" style="padding: 1rem 0; margin-bottom: 1rem;">
+    <div class="instance-info">
+        <div class="instance-avatar">
+            <?php if ($instanceProfile && $instanceProfile['profile_image_url']): ?>
+                <img src="<?= $viewHelper->escape($instanceProfile['profile_image_url']) ?>" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+            <?php else: ?>
+                <div class="avatar-placeholder">📱</div>
+            <?php endif; ?>
+        </div>
+        
+        <div class="instance-details">
+            <h2 style="margin: 0; font-size: 1.2rem;"><?= $viewHelper->escape($instance['name'] ?? $instance['slug']) ?></h2>
+            
+            <div class="instance-status" style="font-size: 0.9rem;">
+                <?php if ($instanceStatus): ?>
+                    <div class="status-item">
+                        <span class="status-label">Estado:</span>
+                        <span class="status-value"><?= $viewHelper->escape($instanceStatus['text'] ?? 'No status') ?></span>
+                    </div>
                 <?php endif; ?>
+                
+                <div class="status-item">
+                    <span class="status-label">Conectado:</span>
+                    <span class="status-value <?= $instance['last_webhook_at'] ? 'online' : 'offline' ?>">
+                        <?= $instance['last_webhook_at'] ? '🟢' : '🔴' ?>
+                        <?= $instance['last_webhook_at'] ? 'Online' : 'Offline' ?>
+                    </span>
+                </div>
+                
+                <div class="status-item">
+                    <span class="status-label">QR:</span>
+                    <button class="btn btn-small" onclick="regenerateQR()">
+                        <span class="icon-refresh"></span>
+                        Regenerar
+                    </button>
+                </div>
             </div>
         </div>
-    <?php endforeach; ?>
+    </div>
     
-    <?php if (empty($chats)): ?>
-        <div class="loading">
-            No chats found. Start a conversation to see it here.
+    <!-- Estadísticas Compactas -->
+    <div class="instance-stats" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+        <div class="stat-card" style="padding: 0.75rem; background: #f8f9fa; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.5rem;">💬</span>
+                <div>
+                    <div style="font-weight: bold;"><?= $selectedInstanceStats['chat_count'] ?? 0 ?></div>
+                    <div style="font-size: 0.8rem; color: #666;">Chats</div>
+                </div>
+            </div>
         </div>
-    <?php endif; ?>
+        
+        <div class="stat-card" style="padding: 0.75rem; background: #f8f9fa; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.5rem;">🔔</span>
+                <div>
+                    <div style="font-weight: bold; color: #dc3545;"><?= $selectedInstanceStats['total_unread'] ?? 0 ?></div>
+                    <div style="font-size: 0.8rem; color: #666;">No leídos</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="stat-card" style="padding: 0.75rem; background: #f8f9fa; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.5rem;">📨</span>
+                <div>
+                    <div style="font-weight: bold;"><?= $selectedInstanceStats['message_count'] ?? 0 ?></div>
+                    <div style="font-size: 0.8rem; color: #666;">Mensajes</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Botones de Navegación -->
+    <div class="navigation-buttons" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+        <a href="index.php?r=campaigns/index&instance=<?= $viewHelper->escape($instance['slug']) ?>" class="btn btn-primary" style="text-decoration: none; padding: 0.5rem 1rem; background: #007bff; color: white; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.5rem;">
+            📢 Campañas
+        </a>
+        <a href="index.php?r=contacts/index&instance=<?= $viewHelper->escape($instance['slug']) ?>" class="btn btn-secondary" style="text-decoration: none; padding: 0.5rem 1rem; background: #6c757d; color: white; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.5rem;">
+            👥 Contactos
+        </a>
+        <a href="index.php?r=audit/index" class="btn btn-info" style="text-decoration: none; padding: 0.5rem 1rem; background: #17a2b8; color: white; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.5rem;">
+            📋 Logs
+        </a>
+    </div>
 </div>
 
-<!-- Conversation -->
-<div class="conversation">
-    <?php if ($selectedChat): ?>
-        <!-- Conversation Header -->
-        <div class="conversation-header">
-            <div class="conversation-title"><?= $viewHelper->escape($selectedChat['title'] ?: $selectedChat['remote_jid']) ?></div>
-            <div class="conversation-actions">
-                <button class="btn-icon" title="Search messages">
+<style>
+/* WhatsApp-style Layout */
+.whatsapp-container {
+    display: flex;
+    height: calc(100vh - 80px);
+    background: #f0f2f5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Left Sidebar */
+.chat-sidebar {
+    width: 350px;
+    background: white;
+    border-right: 1px solid #e9ecef;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 1rem;
+    background: #075e54;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.user-details {
+    flex: 1;
+}
+
+.user-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.user-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-indicator.online {
+    background: #25d366;
+}
+
+.status-indicator.offline {
+    background: #dc3545;
+}
+
+.sidebar-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: background 0.2s;
+}
+
+.btn-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Search Bar */
+.search-bar {
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.search-bar input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    outline: none;
+}
+
+/* Chat List */
+.chat-list {
+    flex: 1;
+    overflow-y: auto;
+    background: white;
+}
+
+.chat-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.chat-item:hover {
+    background: #f8f9fa;
+}
+
+.chat-item.active {
+    background: #e9ecef;
+}
+
+.chat-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-right: 0.75rem;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.chat-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.chat-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #111b21;
+    margin-bottom: 0.25rem;
+}
+
+.chat-last-message {
+    font-size: 0.875rem;
+    color: #666;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.message-sent {
+    color: #25d366;
+}
+
+.message-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.chat-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.chat-time {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+.chat-unread-badge {
+    background: #25d366;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Right Content - Conversation */
+.conversation-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #e5ddd5;
+}
+
+.conversation-header {
+    padding: 1rem;
+    background: white;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chat-header-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.chat-header-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.chat-header-details {
+    flex: 1;
+}
+
+.chat-header-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #111b21;
+}
+
+.chat-header-status {
+    font-size: 0.875rem;
+    color: #666;
+}
+
+.group-info {
+    color: #666;
+}
+
+.last-seen {
+    color: #666;
+}
+
+.conversation-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Messages */
+.messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    background: url('data:image/svg+xml;base64,PHN2ZyB4aWxucz0iaHR0cDovL3d3dy53My5vcmC0Zy9lbW4uc2Z5LzEwIDAgMSIgZW5naW5ib3JkPSJNMDAiIGhlaWdodD0iMTAwIiB2aWV3aWQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiPjwvc3ZnPg==');
+    background-size: cover;
+    background-position: center;
+}
+
+.message {
+    display: flex;
+    margin-bottom: 0.5rem;
+    max-width: 80%;
+}
+
+.message.sent {
+    justify-content: flex-end;
+    margin-left: auto;
+}
+
+.message.received {
+    justify-content: flex-start;
+}
+
+.message-bubble {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    max-width: 100%;
+    position: relative;
+}
+
+.message.sent .message-bubble {
+    background: #dcf8c6;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.message.received .message-bubble {
+    background: white;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.message-author {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #075e54;
+    margin-bottom: 0.25rem;
+}
+
+.message-text {
+    color: #111b21;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.message-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+}
+
+.message-time {
+    color: #666;
+}
+
+.message-status {
+    color: #4fc3f7;
+}
+
+/* Message Input */
+.message-input-container {
+    padding: 1rem;
+    background: white;
+    border-top: 1px solid #e9ecef;
+}
+
+.input-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.input-area {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.message-input {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid #e9ecef;
+    border-radius: 1.5rem;
+    outline: none;
+    font-size: 0.875rem;
+}
+
+.btn-send {
+    background: #25d366;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-send:hover {
+    background: #128c7e;
+}
+
+/* Load More */
+.load-more-container {
+    text-align: center;
+    padding: 1rem;
+}
+
+.btn-load-more {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    color: #666;
+}
+
+.btn-load-more:hover {
+    background: #f8f9fa;
+}
+
+/* Empty States */
+.empty-chats,
+.empty-messages,
+.empty-conversation {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #666;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-chats h3,
+.empty-messages h3,
+.empty-conversation h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.empty-chats p,
+.empty-messages p,
+.empty-conversation p {
+    margin: 0.5rem 0 0 0;
+    text-align: center;
+}
+
+/* Emoji Picker */
+.emoji-picker {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    min-width: 300px;
+    max-width: 400px;
+}
+
+.emoji-picker-header {
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+}
+
+.close-picker {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 0.25rem;
+    padding: 1rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.emoji-item {
+    padding: 0.5rem;
+    border: 1px solid #f0f2f5;
+    border-radius: 0.25rem;
+    background: white;
+    cursor: pointer;
+    font-size: 1.5rem;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.emoji-item:hover {
+    background: #f8f9fa;
+    transform: scale(1.1);
+}
+
+/* Loading states */
+.loading-more {
+    text-align: center;
+    padding: 1rem;
+    color: #666;
+    font-style: italic;
+}
+
+/* File upload enhancements */
+.input-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.input-toolbar .btn-icon {
+    width: 36px;
+    height: 36px;
+}
+
+.input-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.message-input:disabled {
+    background: #f8f9fa;
+    color: #666;
+}
+
+/* Enhanced message bubbles */
+.message-bubble {
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.message-bubble:hover {
+    transform: translateY(-2px);
+}
+
+/* Media message styling */
+.message-bubble img,
+.message-bubble video {
+    max-width: 200px;
+    border-radius: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.message-bubble audio {
+    max-width: 200px;
+    margin-top: 0.5rem;
+}
+
+.message-bubble .message-text a {
+    color: #25d366;
+    text-decoration: underline;
+}
+
+.message-bubble .message-text a:hover {
+    color: #1d4ed8;
+}
+
+/* Responsive improvements */
+@media (max-width: 480px) {
+    .emoji-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
+    
+    .emoji-picker {
+        min-width: 280px;
+        max-width: 90vw;
+    }
+    
+    .input-toolbar {
+        flex-wrap: wrap;
+    }
+}
+</style>
+
+<!-- WhatsApp-style Layout -->
+<div class="whatsapp-container">
+    <!-- Left Sidebar - Chat List -->
+    <div class="chat-sidebar">
+        <!-- Sidebar Header -->
+        <div class="sidebar-header">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <?php if ($instanceProfile && $instanceProfile['profile_image_url']): ?>
+                        <img src="<?= $viewHelper->escape($instanceProfile['profile_image_url']) ?>" alt="Profile">
+                    <?php else: ?>
+                        <div class="avatar-placeholder">👤</div>
+                    <?php endif; ?>
+                </div>
+                <div class="user-details">
+                    <div class="user-name"><?= $viewHelper->escape($instance['name'] ?? $instance['slug']) ?></div>
+                    <div class="user-status">
+                        <span class="status-indicator <?= $instance['last_webhook_at'] ? 'online' : 'offline' ?>"></span>
+                        <span class="status-text"><?= $instance['last_webhook_at'] ? 'Online' : 'Offline' ?></span>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-actions">
+                <button class="btn-icon" onclick="toggleSearch()" title="Search chats">
                     <span class="icon-search"></span>
                 </button>
-                <button class="btn-icon" title="More options">
+                <button class="btn-icon" onclick="newChat()" title="New chat">
+                    <span class="icon-plus"></span>
+                </button>
+                <button class="btn-icon" onclick="toggleMenu()" title="Menu">
                     <span class="icon-menu"></span>
                 </button>
             </div>
         </div>
         
-        <!-- Messages Container -->
-        <div class="messages-container">
-            <?php if (!empty($messages)): ?>
-                <?php foreach ($messages as $message): ?>
-                    <div class="message <?= $message['from_me'] ? 'sent' : 'received' ?>" data-ts="<?= $viewHelper->escape($message['ts']) ?>">
-                        <div class="message-bubble">
-                            <?php if ($message['participant_jid'] && !$message['from_me']): ?>
-                                <div class="message-author"><?= $viewHelper->escape($message['display_name']) ?></div>
-                            <?php endif; ?>
-                            
-                            <?php if ($message['msg_type'] === 'text'): ?>
-                                <div class="message-text"><?= $viewHelper->escape($message['body_text']) ?></div>
-                            <?php else: ?>
-                                <?= $this->renderMediaMessage($message) ?>
-                            <?php endif; ?>
-                            
-                            <div class="message-meta">
-                                <span><?= $viewHelper->formatTime($message['ts'], 'H:i') ?></span>
-                                <?php if ($message['from_me']): ?>
-                                    <span>✓✓</span>
-                                <?php endif; ?>
+        <!-- Search Bar (Hidden by default) -->
+        <div id="search-bar" class="search-bar" style="display: none;">
+            <input type="text" placeholder="Search chats..." id="chat-search">
+            <button class="btn-icon" onclick="clearSearch()">
+                <span class="icon-close"></span>
+            </button>
+        </div>
+        
+        <!-- Chat List -->
+        <div class="chat-list" data-page="1">
+            <?php foreach ($chats as $chat): ?>
+                <div class="chat-item <?= ($selectedChat['id'] ?? null) == $chat['id'] ? 'active' : '' ?>" 
+                     data-chat-id="<?= $viewHelper->escape($chat['id']) ?>" 
+                     data-remote-jid="<?= $viewHelper->escape($chat['remote_jid']) ?>"
+                     onclick="selectChat(<?= $chat['id'] ?>, '<?= $viewHelper->escape($chat['remote_jid']) ?>')">
+                    <div class="chat-avatar">
+                        <?php if (!empty($chat['avatar_url'])): ?>
+                            <img src="<?= $viewHelper->escape($chat['avatar_url']) ?>" alt="Avatar">
+                        <?php else: ?>
+                            <div class="avatar-placeholder <?= $chat['is_group'] ? 'group' : 'person' ?>">
+                                <?= $chat['is_group'] ? '👥' : '👤' ?>
                             </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="chat-info">
+                        <div class="chat-name"><?= $viewHelper->escape($chat['title'] ?: $chat['remote_jid']) ?></div>
+                        <div class="chat-last-message">
+                            <?php if (!empty($chat['from_me'])): ?>
+                                <span class="message-sent">✓</span>
+                            <?php endif; ?>
+                            <span class="message-text"><?= $viewHelper->escape($chat['last_snippet'] ?: '') ?></span>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <div class="loading">
-                    No messages yet. Start the conversation!
+                    <div class="chat-meta">
+                        <div class="chat-time"><?= date('H:i', strtotime($chat['last_message_at'])) ?></div>
+                        <?php if (!empty($chat['has_unread'])): ?>
+                            <div class="chat-unread-badge"><?= $chat['unread_count'] ?? 1 ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+            
+            <?php if (empty($chats)): ?>
+                <div class="empty-chats">
+                    <div class="empty-icon">💬</div>
+                    <h3>No conversations yet</h3>
+                    <p>Start a conversation to see it here</p>
                 </div>
             <?php endif; ?>
         </div>
-        
-        <!-- Message Input -->
-        <div class="message-input-container">
-            <button class="btn-icon" onclick="document.getElementById('file-input').click()" title="Attach file">
-                <span class="icon-attach"></span>
-            </button>
-            
-            <input type="file" id="file-input" style="display: none;" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
-            
-            <form id="message-form" style="flex: 1; display: flex; gap: 0.5rem;">
-                <input type="text" 
-                       id="message-input" 
-                       class="message-input" 
-                       placeholder="Type a message..."
-                       autocomplete="off">
-                
-                <button type="submit" class="btn-icon btn-send" title="Send message">
-                    <span class="icon-send"></span>
-                </button>
-            </form>
-        </div>
-    <?php else: ?>
-        <!-- No chat selected -->
-        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary);">
-            <div style="text-align: center;">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
-                <h3>Select a conversation</h3>
-                <p>Choose a chat from the list to start messaging</p>
+    </div>
+    
+    <!-- Right Content - Conversation -->
+    <div class="conversation-area">
+        <?php if ($selectedChat): ?>
+            <!-- Conversation Header -->
+            <div class="conversation-header">
+                <div class="chat-header-info">
+                    <div class="chat-header-avatar">
+                        <?php if ($selectedChat['avatar_url']): ?>
+                            <img src="<?= $viewHelper->escape($selectedChat['avatar_url']) ?>" alt="Avatar">
+                        <?php else: ?>
+                            <div class="avatar-placeholder <?= $selectedChat['is_group'] ? 'group' : 'person' ?>">
+                                <?= $selectedChat['is_group'] ? '👥' : '👤' ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="chat-header-details">
+                        <div class="chat-header-name"><?= $viewHelper->escape($selectedChat['title'] ?: $selectedChat['remote_jid']) ?></div>
+                        <div class="chat-header-status">
+                            <?php if ($selectedChat['is_group']): ?>
+                                <span class="group-info">👥 <?= $selectedChat['participant_count'] ?? 0 ?> participants</span>
+                            <?php else: ?>
+                                <span class="last-seen">Last seen <?= $viewHelper->timeAgo($selectedChat['last_message_at']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="conversation-actions">
+                    <button class="btn-icon" onclick="searchInChat()" title="Search messages">
+                        <span class="icon-search"></span>
+                    </button>
+                    <button class="btn-icon" onclick="showChatOptions()" title="More options">
+                        <span class="icon-menu"></span>
+                    </button>
+                </div>
             </div>
-        </div>
-    <?php endif; ?>
+            
+            <!-- Messages Container -->
+            <div class="messages-container" id="messages-container">
+                <!-- Load More Button -->
+                <div id="load-more-container" class="load-more-container" style="display: none;">
+                    <button class="btn-load-more" onclick="loadMoreMessages()">
+                        <span class="icon-arrow-up"></span>
+                        Cargar más antiguos
+                    </button>
+                </div>
+                
+                <?php if (!empty($messages)): ?>
+                    <?php foreach ($messages as $message): ?>
+                        <div class="message <?= $message['from_me'] ? 'sent' : 'received' ?>" data-ts="<?= $viewHelper->escape($message['ts']) ?>">
+                            <div class="message-bubble">
+                                <?php if ($message['participant_jid'] && !$message['from_me'] && $selectedChat['is_group']): ?>
+                                    <div class="message-author"><?= $viewHelper->escape($message['display_name']) ?></div>
+                                <?php endif; ?>
+                                
+                                <?php if ($message['msg_type'] === 'text'): ?>
+                                    <div class="message-text"><?= $viewHelper->escape($message['body_text']) ?></div>
+                                <?php else: ?>
+                                    <?= renderMediaMessage($message) ?>
+                                <?php endif; ?>
+                                
+                                <div class="message-meta">
+                                    <span class="message-time"><?= date('H:i', strtotime($message['ts'])) ?></span>
+                                    <?php if ($message['from_me']): ?>
+                                        <span class="message-status"><?= $message['status'] === 'read' ? '✓✓' : '✓' ?></span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="empty-chat-state" style="text-align: center; padding: 3rem; color: #666;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
+                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">Selecciona un chat para comenzar</div>
+                        <div style="font-size: 0.9rem; color: #999;">Los mensajes aparecerán aquí</div>
+                    </div>
+                <?php endif; ?>
+            </div>
+            
+            <!-- Message Input -->
+            <div class="message-input-container">
+                <div class="input-toolbar">
+                    <button class="btn-icon" onclick="document.getElementById('file-input').click()" title="Attach file">
+                        <span class="icon-attach"></span>
+                    </button>
+                    <button class="btn-icon" onclick="showEmojiPicker()" title="Emoji">
+                        <span class="icon-smile"></span>
+                    </button>
+                </div>
+                
+                <div class="input-area">
+                    <input type="file" id="file-input" style="display: none;" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                    
+                    <form id="message-form" style="display: flex; align-items: center;">
+                        <input type="text" 
+                               id="message-input" 
+                               class="message-input" 
+                               placeholder="Escribe un mensaje..."
+                               autocomplete="off">
+                        
+                        <button type="submit" class="btn-send" title="Send message">
+                            <span class="icon-send"></span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+        <?php else: ?>
+            <!-- No chat selected -->
+            <div class="empty-conversation">
+                <div class="empty-icon">💬</div>
+                <h3>Selecciona una conversación</h3>
+                <p>Elige un chat de la lista para empezar a conversar</p>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
 
 <script>
-// Set current instance for JavaScript
-window.evoapp.currentInstance = '<?= $viewHelper->escape($instance['slug']) ?>';
+// WhatsApp-style functions
+function selectChat(chatId, remoteJid) {
+    window.location.href = `index.php?r=inbox/index&instance=${window.evoappInitialInstance}&chat_id=${chatId}`;
+}
+
+function toggleSearch() {
+    const searchBar = document.getElementById('search-bar');
+    if (searchBar.style.display === 'none') {
+        searchBar.style.display = 'flex';
+        document.getElementById('chat-search').focus();
+    } else {
+        searchBar.style.display = 'none';
+    }
+}
+
+function clearSearch() {
+    document.getElementById('chat-search').value = '';
+}
+
+function newChat() {
+    // Implement new chat functionality
+    console.log('New chat clicked');
+}
+
+function toggleMenu() {
+    // Implement menu functionality
+    console.log('Menu clicked');
+}
+
+function searchInChat() {
+    // Implement chat search functionality
+    console.log('Search in chat clicked');
+}
+
+function showChatOptions() {
+    // Implement chat options functionality
+    console.log('Chat options clicked');
+}
+
+function showEmojiPicker() {
+    // Implement emoji picker functionality
+    console.log('Emoji picker clicked');
+}
+
+function loadMoreMessages() {
+    const container = document.getElementById('load-more-container');
+    const messagesContainer = document.getElementById('messages-container');
+    
+    // Show loading state
+    container.innerHTML = '<div class="loading-more">Cargando...</div>';
+    
+    // Get current oldest message timestamp
+    const messages = messagesContainer.querySelectorAll('.message');
+    const oldestMessage = messages[messages.length - 1];
+    const oldestTs = oldestMessage ? oldestMessage.dataset.ts : null;
+    
+    if (oldestTs) {
+        fetch(`index.php?r=inbox/messages&instance=${window.evoappInitialInstance}&chat_id=${window.evoappInitialChat.id}&before_ts=${oldestTs}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.messages) {
+                    // Insert new messages at the beginning
+                    const fragment = document.createDocumentFragment();
+                    data.messages.reverse().forEach(message => {
+                        const messageEl = createMessageElement(message);
+                        fragment.appendChild(messageEl);
+                    });
+                    
+                    messagesContainer.insertBefore(fragment, messagesContainer.firstChild);
+                    
+                    // Hide load more button if no more messages
+                    if (!data.hasMore) {
+                        container.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading more messages:', error);
+                container.innerHTML = '<button class="btn-load-more" onclick="loadMoreMessages()">Error - Reintentar</button>';
+            });
+    }
+}
+
+function createMessageElement(message) {
+    const div = document.createElement('div');
+    div.className = `message ${message.from_me ? 'sent' : 'received'}`;
+    div.dataset.ts = message.ts;
+    
+    div.innerHTML = `
+        <div class="message-bubble">
+            ${message.participant_jid && !message.from_me && window.evoappInitialChat.is_group ? 
+                `<div class="message-author">${message.display_name}</div>` : ''}
+            ${message.msg_type === 'text' ? 
+                `<div class="message-text">${message.body_text}</div>` : 
+                renderMediaMessageHTML(message)}
+            <div class="message-meta">
+                <span class="message-time">${formatTime(message.ts, 'H:i')}</span>
+                ${message.from_me ? 
+                    `<span class="message-status">${message.status === 'read' ? '✓✓' : '✓'}</span>` : ''}
+            </div>
+        </div>
+    `;
+    
+    return div;
+}
+
+function formatTime(timestamp, format) {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('es-ES', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+    });
+}
+
+function renderMediaMessageHTML(message) {
+    // Simple media rendering - can be enhanced
+    switch (message.msg_type) {
+        case 'image':
+            return message.media_url ? 
+                `<img src="${message.media_url}" style="max-width: 200px; border-radius: 0.5rem;" alt="Image">` :
+                `<div class="message-text">📷${message.body_text ? ': ' + message.body_text : ''}</div>`;
+        case 'video':
+            return message.media_url ? 
+                `<video controls style="max-width: 200px; border-radius: 0.5rem;"><source src="${message.media_url}"></video>` :
+                `<div class="message-text">🎥${message.body_text ? ': ' + message.body_text : ''}</div>`;
+        case 'audio':
+            return message.media_url ? 
+                `<audio controls style="max-width: 200px;"><source src="${message.media_url}"></audio>` :
+                `<div class="message-text">🎵${message.body_text ? ': ' + message.body_text : ''}</div>`;
+        case 'document':
+            return message.media_url ? 
+                `<div class="message-text">📄 <a href="${message.media_url}" target="_blank">${message.body_text || 'Document'}</a></div>` :
+                `<div class="message-text">📄 ${message.body_text || 'Document'}</div>`;
+        default:
+            return `<div class="message-text">📎 ${message.body_text || 'Media'}</div>`;
+    }
+}
+
+// Preload current instance for app.js
+window.evoappInitialInstance = '<?= $viewHelper->escape($instance['slug']) ?>';
 
 <?php if ($selectedChat): ?>
-// Set current chat for JavaScript
-window.evoapp.currentChat = {
+// Preload current chat for app.js
+window.evoappInitialChat = {
     id: <?= $viewHelper->escape($selectedChat['id']) ?>,
-    remoteJid: '<?= $viewHelper->escape($selectedChat['remote_jid']) ?>'
+    remoteJid: '<?= $viewHelper->escape($selectedChat['remote_jid']) ?>',
+    is_group: <?= $selectedChat['is_group'] ? 'true' : 'false' ?>
 };
 <?php endif; ?>
 
@@ -141,7 +1076,257 @@ document.addEventListener('keydown', (e) => {
             form.dispatchEvent(new Event('submit'));
         }
     }
+    
+    // Escape to close search
+    if (e.key === 'Escape') {
+        const searchBar = document.getElementById('search-bar');
+        if (searchBar && searchBar.style.display !== 'none') {
+            toggleSearch();
+        }
+    }
 });
+
+// Handle message form submission
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('message-form');
+    const fileInput = document.getElementById('file-input');
+    const messageInput = document.getElementById('message-input');
+    
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const text = messageInput.value.trim();
+            
+            if (!text) return;
+            
+            // Send message via AJAX
+            sendMessage(text);
+            
+            // Clear input
+            messageInput.value = '';
+            messageInput.focus();
+        });
+    }
+    
+    // Handle file input change
+    if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                uploadFile(file);
+            }
+        });
+    }
+});
+
+// Send text message
+function sendMessage(text) {
+    // Validate we have a selected chat
+    if (!window.evoappInitialChat || !window.evoappInitialChat.id) {
+        showError('No chat selected');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('instance', window.evoappInitialInstance);
+    formData.append('chat_id', window.evoappInitialChat.id);
+    formData.append('text', text);
+    
+    // Show sending indicator
+    showSending(true);
+    
+    fetch('index.php?r=inbox/send', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSending(false);
+        
+        if (data.success) {
+            // Add message to UI
+            addMessageToUI({
+                from_me: true,
+                msg_type: 'text',
+                body_text: text,
+                ts: new Date().toISOString(),
+                status: 'sent'
+            });
+            
+            // Scroll to bottom
+            scrollToBottom();
+        } else {
+            showError(data.error || 'Error sending message');
+            console.error('Send error:', data);
+        }
+    })
+    .catch(error => {
+        showSending(false);
+        console.error('Network error:', error);
+        showError('Network error sending message');
+    });
+}
+
+// Show sending indicator
+function showSending(show) {
+    const form = document.getElementById('message-form');
+    const sendBtn = form?.querySelector('.btn-send');
+    
+    if (sendBtn) {
+        if (show) {
+            sendBtn.innerHTML = '<span class="icon-loading">⏳</span>';
+            sendBtn.disabled = true;
+        } else {
+            sendBtn.innerHTML = '<span class="icon-send"></span>';
+            sendBtn.disabled = false;
+        }
+    }
+}
+
+// Show error message
+function showError(message) {
+    // Create error toast
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #dc3545;
+        color: white;
+        padding: 1rem;
+        border-radius: 4px;
+        z-index: 9999;
+        max-width: 300px;
+    `;
+    errorDiv.textContent = message;
+    
+    document.body.appendChild(errorDiv);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (errorDiv.parentNode) {
+            errorDiv.parentNode.removeChild(errorDiv);
+        }
+    }, 3000);
+}
+
+// Upload and send media file
+function uploadFile(file) {
+    const formData = new FormData();
+    formData.append('instance', window.evoappInitialInstance);
+    formData.append('chat_id', window.evoappInitialChat.id);
+    formData.append('media', file);
+    formData.append('caption', ''); // Can be enhanced with caption input
+    
+    // Show uploading indicator
+    showUploading(true);
+    
+    fetch('index.php?r=inbox/sendMedia', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        showUploading(false);
+        
+        if (data.success) {
+            // Add message to UI
+            addMessageToUI({
+                from_me: true,
+                msg_type: data.file_info.type,
+                body_text: data.file_info.name,
+                media_url: data.result.media_url || null,
+                ts: new Date().toISOString(),
+                status: 'sent'
+            });
+            
+            // Scroll to bottom
+            scrollToBottom();
+        } else {
+            showError(data.error || 'Error uploading file');
+        }
+    })
+    .catch(error => {
+        showUploading(false);
+        console.error('Error:', error);
+        showError('Error uploading file');
+    });
+}
+
+// Add message to UI
+function addMessageToUI(message) {
+    const messagesContainer = document.getElementById('messages-container');
+    if (!messagesContainer) return;
+    
+    const messageEl = createMessageElement(message);
+    messagesContainer.appendChild(messageEl);
+    
+    // Scroll to bottom
+    scrollToBottom();
+}
+
+// Show uploading indicator
+function showUploading(show) {
+    const messageInput = document.getElementById('message-input');
+    if (messageInput) {
+        messageInput.placeholder = show ? 'Enviando archivo...' : 'Escribe un mensaje...';
+        messageInput.disabled = show;
+    }
+}
+
+// Scroll to bottom of messages
+function scrollToBottom() {
+    const messagesContainer = document.getElementById('messages-container');
+    if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+}
+
+// Show error message
+function showError(message) {
+    // Simple error display - can be enhanced with toast notifications
+    alert(message);
+    console.error(message);
+}
+
+// Enhanced emoji picker (simplified)
+function showEmojiPicker() {
+    const commonEmojis = ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🥰', '😘', '😚', '😙', '🥲', '😱', '😨', '😰', '😥', '😓', '😭', '😪', '😵', '🤔', '🤗', '🤤', '🤢', '👍', '👎', '👌', '🙌', '🌟', '⭐', '💫', '💥', '💢', '💯', '🚀', '🎉', '🎊', '🎈', '🎆', '🎃', '🎂', '🎄', '🎁', '🎀', '🎯', '🎰', '🎱', '🎲', '🎮', '🎰', '🎲', '🎸', '🎺', '🎻', '🎼', '🎽', '🎾', '🎿', '🏀', '🏁', '🏂', '🏃', '🏄', '🏅', '🏆', '🏇', '🏈', '🏉', '🏊', '🏋', '🏌', '🏍', '🏎', '🏏', '🏐', '🏑', '🏒', '🏓', '🏔', '🏕', '🏖', '🏗', '🏘', '🏙', '🏚', '🏛', '🏜', '🏝', '🏞', '🏟', '🏠', '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏧', '🏨', '🏩', '🏪', '🏫', '🏬', '🏭', '🏮', '🏯', '🏰', '🏱', '🏲', '🏳', '🏴', '🏵', '🐶', '🐸', '🦀', '🦁', '🦂', '🦃', '🦄', '🦅', '🦆', '🦇', '🦈', '🦉', '🦊', '🦋', '🦌', '🦍', '🦎', '🦏', '🦐', '🦑', '🦒', '🦓', '🦔', '🦕', '🦖', '🦗', '🦘', '🦙', '🦚', '🦛', '🦜', '🦝', '🦞', '🦟', '🦠', '🦡', '🦢', '🦣', '🦤', '🦥', '🦦', '🦧', '🦨', '🦩', '🦪', '🦫', '🦭', '🦮', '🦯', '🦰', '🦱', '🦲', '🦳', '🦴', '🦵', '🦶', '🦷', '🦸', '🦹', '🦺', '🦻', '🦼', '🦽', '🦾', '🦿', '🧀', '🧁', '🧂', '🧃', '🧄', '🧅', '🧆', '🧇', '🧈', '🧉', '🧊', '🧋', '🧌', '🧍', '🧎', '🧏', '🧐', '🧑', '🧒', '🧓', '🧔', '🧕', '🧖', '🧗', '🧘', '🧙', '🧚', '🧛', '🧜', '🧝', '🧞', '🧟', '🧠', '🧡', '🧢', '🧣', '🧤', '🧥', '🧦', '🧧', '🧨', '🧩', '🧪', '🧫', '🧭', '🧮', '🧯', '🧰', '🧱', '🧲', '🧳', '🧴', '🧵', '🧶', '🧷', '🧸', '🧹', '🧺', '🧻', '🧼', '🧽', '🧾', '🧿', '🩀', '🩁', '🩂', '🩃', '🩄', '🩅', '🩆', '🩇', '🩈', '🩉', '🩊', '🩋', '🩌', '🩍', '🩎', '🩏', '🩐', '🩑', '🩒', '🩓', '🩔', '🩕', '🩖', '🩗', '🩘', '🩙', '🩚', '🩛', '🩜', '🩝', '🩞', '🩟', '🩠', '🩡', '🩢', '🩣', '🩤', '🩥', '🩦', '🩧', '🩨', '🩩', '🩪', '🩫', '🩭', '🩮', '🩯', '🩰', '🩱', '🩲', '🩳', '🩴', '🩵', '🩶', '🩷', '🩸', '🩹', '🩺', '🩻', '🩼', '🩽', '🩾', '🩿', '🪀', '🪁', '🪂', '🪃', '🪄', '🪅', '🪆', '🪇', '🪈', '🪉', '🪊', '🪋', '🪌', '🪍', '🪎', '🪏', '🪐', '🪑', '🪒', '🪓', '🪔', '🪕', '🪖', '🪗', '🪘', '🪙', '🪚', '🪛', '🪜', '🪝', '🪞', '🪟', '🪠', '🪡', '🪢', '🪣', '🪤', '🪥', '🪦', '🪧', '🪨', '🪩', '🪪', '🪫', '🪭', '🪮', '🪯', '🪰', '🪱', '🪲', '🪳', '🪴', '🪵', '🪶', '🪷', '🪸', '🪹', '🪺', '🪻', '🪼', '🪽', '🪾', '🪿', '🫀', '🫁', '🫂', '🫃', '🫄', '🫅', '🫆', '🫇', '🫈', '🫉', '🫊', '🫋', '🫌', '🫍', '🫎', '🫏', '🫐', '🫑', '🫒', '🫓', '🫔', '🫕', '🫖', '🫗', '🫘', '🫙', '🫚', '🫛', '🫜', '🫝', '🫞', '🫟', '🫠', '🫡', '🫢', '🫣', '🫤', '🫥', '🫦', '🫧', '🫨', '🫩', '🫪', '🫫', '🫭', '🫮', '🫯', '🫰', '🫱', '🫲', '🫳', '🫴', '🫵', '🫶', '🫷', '🫸', '🫹', '🫺', '🫻', '🫼', '🫽', '🫾', '🫿', '🬀', '🬁', '🬂', '🬃', '🬄', '🬅', '🬆', '🬇', '🬈', '🬉', '🬊', '🬋', '🬌', '🬍', '🬎', '🬏', '🬐', '🬑', '🬒', '🬓', '🬔', '🬕', '🬖', '🬗', '🬘', '🬙', '🬚', '🬛', '🬜', '🬝', '🬞', '🬟', '🬠', '🬡', '🬢', '🬣', '🬤', '🬥', '🬦', '🬧', '🬨', '🬩', '🬪', '🬫', '🬭', '🬮', '🬯', '🬰', '🬱', '🬲', '🬳', '🬴', '🬵', '🬶', '🬷', '🬸', '🬹', '🬺', '🬻', '🬼', '🬽', '🬾', '🬿', '🭀', '🭁', '🭂', '🭃', '🭄', '🭅', '🭆', '🭇', '🭈', '🭉', '🭊', '🭋', '🭌', '🭍', '🭎', '🭏', '🭐', '🭑', '🭒', '🭓', '🭔', '🭕', '🭖', '🭗', '🭘', '🭙', '🭚', '🭛', '🭜', '🭝', '🭞', '🭟', '🭠', '🭡', '🭢', '🭣', '🭤', '🭥', '🭦', '🭧', '🭨', '🭩', '🭪', '🭫', '🭭', '🭮', '🭯', '🭰', '🭱', '🭲', '🭳', '🭴', '🭵', '🭶', '🭷', '🭸', '🭹', '🭺', '🭻', '🭼', '🭽', '🭾', '🭿', '🮀', '🮁', '🮂', '🮃', '🮄', '🮅', '🮆', '🮇', '🮈', '🮉', '🮊', '🮋', '🮌', '🮍', '🮎', '🮏', '🮐', '🮑', '🮒', '🮓', '🮔', '🮕', '🮖', '🮗', '🮘', '🮙', '🮚', '🮛', '🮜', '🮝', '🮞', '🮟', '🮠', '🮡', '🮢', '🮣', '🮤', '🮥', '🮦', '🮧', '🮨', '🮩', '🮪', '🮫', '🮭', '🮮', '🮯', '🮰', '🮱', '🮲', '🮳', '🮴', '🮵', '🮶', '🮷', '🮸', '🮹', '🮺', '🮻', '🮼', '🮽', '🮾', '🮿', '🯀', '🯁', '🯂', '🯃', '🯄', '🯅', '🯆', '🯇', '🯈', '🯉', '🯊', '🯋', '🯌', '🯍', '🯎', '🯏', '🯐', '🯑', '🯒', '🯓', '🯔', '🯕', '🯖', '🯗', '🯘', '🯙', '🯚', '🯛', '🯜', '🯝', '🯞', '🯟', '🯠', '🯡', '🯢', '🯣', '🯤', '🯥', '🯦', '🯧', '🯨', '🯩', '🯪', '🯫', '🯭', '🯮', '🯯', '🯰', '🯱', '🯲', '🯳', '🯴', '🯵', '🯶', '🯷', '🯸', '🯹', '🯺', '🯻', '🯼', '🯽', '🯾', '🯿'];
+    
+    // Create simple emoji picker
+    const emojiPicker = document.createElement('div');
+    emojiPicker.className = 'emoji-picker';
+    emojiPicker.innerHTML = `
+        <div class="emoji-picker-header">
+            <span>Selecciona un emoji</span>
+            <button class="close-picker" onclick="this.parentElement.remove()">×</button>
+        </div>
+        <div class="emoji-grid">${commonEmojis.map(emoji => 
+            `<span class="emoji-item" onclick="insertEmoji('${emoji}')">${emoji}</span>`
+        ).join('')}</div>
+    `;
+    
+    document.body.appendChild(emojiPicker);
+    
+    // Close when clicking outside
+    setTimeout(() => {
+        document.addEventListener('click', (e) => {
+            if (!emojiPicker.contains(e.target)) {
+                emojiPicker.remove();
+            }
+        });
+    }, 100);
+}
+
+// Insert emoji into input
+function insertEmoji(emoji) {
+    const messageInput = document.getElementById('message-input');
+    if (messageInput) {
+        messageInput.value += emoji;
+        messageInput.focus();
+    }
+}
 </script>
 
 <?php
