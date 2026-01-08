@@ -76,7 +76,7 @@ class CampaignsController
             return;
         }
 
-        $instanceSlug = $_POST['instance'] ?? '';
+        $instanceSlug = $_POST['instance'] ?? $_GET['instance'] ?? '';
         $instance = Instance::findBySlug($instanceSlug);
         
         if (!$instance || !Auth::canViewInstance($instance['id'])) {
@@ -106,9 +106,17 @@ class CampaignsController
         // Validate
         $errors = $this->validateCampaignData($data);
         if (!empty($errors)) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'errors' => $errors]);
-            return;
+            if ($this->isAjaxRequest()) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'errors' => $errors]);
+                return;
+            } else {
+                View::set('errors', $errors);
+                View::set('data', $data);
+                View::set('instance', $instance);
+                View::render('campaigns/create');
+                return;
+            }
         }
 
         try {
@@ -142,12 +150,27 @@ class CampaignsController
             // Log action
             Auth::logAction('create_campaign', 'campaign', $campaignId, null, $data);
 
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true, 'message' => 'Campaña creada correctamente', 'campaign_id' => $campaignId]);
+            if ($this->isAjaxRequest()) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'message' => 'Campaña creada correctamente', 'campaign_id' => $campaignId]);
+            } else {
+                View::flash('success', 'Campaña creada correctamente');
+                header('Location: index.php?r=campaigns/index&instance=' . urlencode($instance['slug']));
+                exit;
+            }
 
         } catch (\Exception $e) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Error al crear campaña: ' . $e->getMessage()]);
+            $error = 'Error al crear campaña: ' . $e->getMessage();
+            
+            if ($this->isAjaxRequest()) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => $error]);
+            } else {
+                View::set('error', $error);
+                View::set('data', $data);
+                View::set('instance', $instance);
+                View::render('campaigns/create');
+            }
         }
     }
 
@@ -230,9 +253,17 @@ class CampaignsController
         // Validate
         $errors = $this->validateCampaignData($data, $id);
         if (!empty($errors)) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'errors' => $errors]);
-            return;
+            if ($this->isAjaxRequest()) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'errors' => $errors]);
+                return;
+            } else {
+                View::set('errors', $errors);
+                View::set('campaign', array_merge($campaign, $data));
+                View::set('instance', $instance);
+                View::render('campaigns/edit');
+                return;
+            }
         }
 
         try {
@@ -241,12 +272,27 @@ class CampaignsController
             // Log action
             Auth::logAction('update_campaign', 'campaign', $id, $campaign, $data);
 
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true, 'message' => 'Campaña actualizada correctamente']);
+            if ($this->isAjaxRequest()) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'message' => 'Campaña actualizada correctamente']);
+            } else {
+                View::flash('success', 'Campaña actualizada correctamente');
+                header('Location: index.php?r=campaigns/index&instance=' . urlencode($instance['slug']));
+                exit;
+            }
 
         } catch (\Exception $e) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Error al actualizar campaña: ' . $e->getMessage()]);
+            $error = 'Error al actualizar campaña: ' . $e->getMessage();
+            
+            if ($this->isAjaxRequest()) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => $error]);
+            } else {
+                View::set('error', $error);
+                View::set('campaign', array_merge($campaign, $data));
+                View::set('instance', $instance);
+                View::render('campaigns/edit');
+            }
         }
     }
 
@@ -336,6 +382,12 @@ class CampaignsController
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Error al ejecutar campaña: ' . $e->getMessage()]);
         }
+    }
+
+    private function isAjaxRequest()
+    {
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        return stripos($accept, 'application/json') !== false;
     }
 
     private function validateCampaignData($data, $excludeId = null)

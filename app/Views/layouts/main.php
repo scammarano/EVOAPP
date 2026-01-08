@@ -30,6 +30,16 @@ $currentInstanceSlug = $instance['slug'] ?? ($_GET['instance'] ?? '');
                 </div>
                 
                 <div class="sidebar-content">
+                    <?php if (Auth::hasPermission('users.manage')): ?>
+                        <div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 0.75rem;">
+                            <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Admin</div>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <a href="<?= $viewHelper->url('admin/users') ?>" class="btn btn-secondary" style="justify-content: flex-start;">Users</a>
+                                <a href="<?= $viewHelper->url('admin/roles') ?>" class="btn btn-secondary" style="justify-content: flex-start;">Roles</a>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
                     <?php if (isset($instance)): ?>
                         <!-- Instance Navigation -->
                         <div class="instance-header">
@@ -65,18 +75,18 @@ $currentInstanceSlug = $instance['slug'] ?? ($_GET['instance'] ?? '');
                         </div>
                     <?php endif; ?>
                     
-                    <?php if (isset($_SESSION['flash_error'])): ?>
+                    <?php if (isset($_SESSION['flash_error']) || isset($_SESSION['flash']['error'])): ?>
                         <div class="alert alert-error">
-                            <?= $viewHelper->escape($_SESSION['flash_error']) ?>
+                            <?= $viewHelper->escape($_SESSION['flash_error'] ?? $_SESSION['flash']['error']) ?>
                         </div>
-                        <?php unset($_SESSION['flash_error']); ?>
+                        <?php unset($_SESSION['flash_error'], $_SESSION['flash']['error']); ?>
                     <?php endif; ?>
                     
-                    <?php if (isset($_SESSION['flash_success'])): ?>
+                    <?php if (isset($_SESSION['flash_success']) || isset($_SESSION['flash']['success'])): ?>
                         <div class="alert alert-success">
-                            <?= $viewHelper->escape($_SESSION['flash_success']) ?>
+                            <?= $viewHelper->escape($_SESSION['flash_success'] ?? $_SESSION['flash']['success']) ?>
                         </div>
-                        <?php unset($_SESSION['flash_success']); ?>
+                        <?php unset($_SESSION['flash_success'], $_SESSION['flash']['success']); ?>
                     <?php endif; ?>
                 </div>
             </div>
@@ -88,11 +98,11 @@ $currentInstanceSlug = $instance['slug'] ?? ($_GET['instance'] ?? '');
         </div>
     <?php else: ?>
         <div class="auth-container">
-            <?php if (isset($_SESSION['flash_error'])): ?>
+            <?php if (isset($_SESSION['flash_error']) || isset($_SESSION['flash']['error'])): ?>
                 <div class="alert alert-error">
-                    <?= $viewHelper->escape($_SESSION['flash_error']) ?>
+                    <?= $viewHelper->escape($_SESSION['flash_error'] ?? $_SESSION['flash']['error']) ?>
                 </div>
-                <?php unset($_SESSION['flash_error']); ?>
+                <?php unset($_SESSION['flash_error'], $_SESSION['flash']['error']); ?>
             <?php endif; ?>
             
             <?= $content ?? '' ?>

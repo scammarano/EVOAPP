@@ -7,6 +7,20 @@ class Router
         // Auth routes
         'auth/login' => ['AuthController', 'login'],
         'auth/logout' => ['AuthController', 'logout'],
+
+        // Admin
+        'admin/users' => ['AdminUsersController', 'index'],
+        'admin/users/create' => ['AdminUsersController', 'create'],
+        'admin/users/store' => ['AdminUsersController', 'store'],
+        'admin/users/edit' => ['AdminUsersController', 'edit'],
+        'admin/users/update' => ['AdminUsersController', 'update'],
+        'admin/users/toggleActive' => ['AdminUsersController', 'toggleActive'],
+
+        'admin/roles' => ['AdminRolesController', 'index'],
+        'admin/roles/create' => ['AdminRolesController', 'create'],
+        'admin/roles/store' => ['AdminRolesController', 'store'],
+        'admin/roles/edit' => ['AdminRolesController', 'edit'],
+        'admin/roles/update' => ['AdminRolesController', 'update'],
         
         // Dashboard
         'dashboard/index' => ['DashboardController', 'index'],

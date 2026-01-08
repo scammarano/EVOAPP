@@ -26,6 +26,16 @@ class User
         
         return array_column($roles, 'name');
     }
+
+    public static function getRoleIds($userId)
+    {
+        $rows = DB::fetchAll(
+            "SELECT role_id FROM user_roles WHERE user_id = ?",
+            [$userId]
+        );
+
+        return array_map('intval', array_column($rows, 'role_id'));
+    }
     
     public static function getPermissions($userId)
     {
