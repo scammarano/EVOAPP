@@ -8,6 +8,8 @@ $title = $title ?? APP_NAME;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?= $viewHelper->escape(Auth::generateCsrfToken()) ?>">
+    <meta name="csrf-token-name" content="<?= $viewHelper->escape(CSRF_TOKEN_NAME) ?>">
     <title><?= $viewHelper->escape($title ?? APP_NAME) ?></title>
     <link rel="stylesheet" href="<?= $viewHelper->asset('css/app.css') ?>">
 </head>

@@ -168,6 +168,16 @@ View::set('title', 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME
 </div>
 
 <script>
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.content : '';
+}
+
+function getCsrfTokenFieldName() {
+    const meta = document.querySelector('meta[name="csrf-token-name"]');
+    return meta ? meta.content : 'csrf_token';
+}
+
 function runCampaign(campaignId) {
     if (!confirm('Are you sure you want to run this campaign now?')) {
         return;
@@ -176,6 +186,10 @@ function runCampaign(campaignId) {
     const formData = new FormData();
     formData.append('id', campaignId);
     formData.append('instance', '<?= View::escape($instance['slug']) ?>');
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+        formData.append(getCsrfTokenFieldName(), csrfToken);
+    }
     
     fetch('<?= View::url('campaigns/run') ?>', {
         method: 'POST',
@@ -203,6 +217,10 @@ function deleteCampaign(campaignId, campaignName) {
     
     const formData = new FormData();
     formData.append('id', campaignId);
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+        formData.append(getCsrfTokenFieldName(), csrfToken);
+    }
     
     fetch('<?= View::url('campaigns/delete') ?>', {
         method: 'POST',

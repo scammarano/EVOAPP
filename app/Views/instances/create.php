@@ -10,6 +10,7 @@ $title = 'Create Instance - ' . APP_NAME;
     </div>
 
     <form method="post" action="<?= $viewHelper->url('instances/store') ?>" id="instance-form">
+        <?= \App\Core\View::csrfField() ?>
         <div class="form-group">
             <label class="form-label" for="slug">Instance Slug *</label>
             <input type="text" id="slug" name="slug" class="form-input" 

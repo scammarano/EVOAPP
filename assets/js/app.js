@@ -247,6 +247,7 @@ class EVOAPP {
             formData.append('instance', this.currentInstance);
             formData.append('chat_id', this.currentChat.id);
             formData.append('text', text);
+            this.appendCsrfToken(formData);
 
             const response = await fetch('index.php?r=inbox/send', {
                 method: 'POST',
@@ -276,6 +277,7 @@ class EVOAPP {
             formData.append('chat_id', this.currentChat.id);
             formData.append('media', file);
             formData.append('caption', caption);
+            this.appendCsrfToken(formData);
 
             const response = await fetch('index.php?r=inbox/sendMedia', {
                 method: 'POST',
@@ -317,6 +319,7 @@ class EVOAPP {
         try {
             const formData = new FormData();
             formData.append('chat_id', chatId);
+            this.appendCsrfToken(formData);
 
             await fetch('index.php?r=inbox/markRead', {
                 method: 'POST',
@@ -531,6 +534,23 @@ class EVOAPP {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.content : '';
+    }
+
+    getCsrfTokenFieldName() {
+        const meta = document.querySelector('meta[name="csrf-token-name"]');
+        return meta ? meta.content : 'csrf_token';
+    }
+
+    appendCsrfToken(formData) {
+        const token = this.getCsrfToken();
+        if (token) {
+            formData.append(this.getCsrfTokenFieldName(), token);
+        }
     }
 
     showError(message) {

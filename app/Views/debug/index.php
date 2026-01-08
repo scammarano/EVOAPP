@@ -164,6 +164,7 @@ View::set('title', 'Debug - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME);
         </div>
         
         <form id="test-send-form" style="display: flex; flex-direction: column; gap: 1rem;">
+            <?= \App\Core\View::csrfField() ?>
             <input type="hidden" name="instance" value="<?= View::escape($instance['slug']) ?>">
             
             <div class="form-group">

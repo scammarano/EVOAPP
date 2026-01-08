@@ -11,21 +11,25 @@ class App
     
     public function __construct()
     {
+        // Set error handler
+        set_error_handler([$this, 'handleError']);
+        set_exception_handler([$this, 'handleException']);
+
         // Initialize database
         DB::init();
         
         // Initialize router
         $this->router = new Router();
-        
-        // Set error handler
-        set_error_handler([$this, 'handleError']);
-        set_exception_handler([$this, 'handleException']);
     }
     
     public function run()
     {
         $route = $_GET['r'] ?? 'dashboard/index';
         
+        if ($this->shouldValidateCsrf($route)) {
+            $this->validateCsrf();
+        }
+
         // Check if route requires authentication
         if (!$this->isPublicRoute($route)) {
             Auth::requireLogin();
@@ -43,6 +47,41 @@ class App
         ];
         
         return in_array($route, $publicRoutes);
+    }
+
+    private function shouldValidateCsrf($route)
+    {
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        if ($method !== 'POST') {
+            return false;
+        }
+
+        $csrfExemptRoutes = [
+            'webhook/evolution'
+        ];
+
+        return !in_array($route, $csrfExemptRoutes, true);
+    }
+
+    private function validateCsrf()
+    {
+        $token = $_POST[CSRF_TOKEN_NAME] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+
+        if (!Auth::validateCsrfToken($token)) {
+            if ($this->isAjaxRequest()) {
+                http_response_code(419);
+                header('Content-Type: application/json');
+                echo json_encode(['error' => 'Invalid CSRF token']);
+                exit;
+            }
+
+            $this->showErrorPage(419, "Invalid CSRF token");
+        }
+    }
+
+    private function isAjaxRequest()
+    {
+        return !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
     }
     
     public function handleError($severity, $message, $file, $line)

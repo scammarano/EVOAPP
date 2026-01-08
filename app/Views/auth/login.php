@@ -16,6 +16,7 @@ $title = 'Login - ' . APP_NAME;
         <?php endif; ?>
         
         <form method="post" action="<?= $viewHelper->url('auth/login') ?>" style="display: flex; flex-direction: column; gap: 1rem;">
+            <?= \App\Core\View::csrfField() ?>
             <div class="form-group">
                 <label class="form-label" for="email">Email</label>
                 <input type="email" id="email" name="email" class="form-input" required 
