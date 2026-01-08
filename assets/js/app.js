@@ -13,8 +13,27 @@ class EVOAPP {
     }
 
     init() {
+        this.initCurrentInstance();
         this.setupEventListeners();
         this.startPolling();
+    }
+
+    initCurrentInstance() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const instanceFromQuery = params.get('instance');
+            if (instanceFromQuery) {
+                this.currentInstance = instanceFromQuery;
+                return;
+            }
+
+            const instanceFromBody = document.body ? document.body.dataset.instance : '';
+            if (instanceFromBody) {
+                this.currentInstance = instanceFromBody;
+            }
+        } catch (e) {
+            // ignore
+        }
     }
 
     setupEventListeners() {

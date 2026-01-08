@@ -1,5 +1,6 @@
 <?php
-View::set('title', 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME);
+use App\Core\Auth;
+$title = 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
 ?>
 
 <div class="campaigns-page" style="padding: 1rem;">
@@ -8,12 +9,12 @@ View::set('title', 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME
         <div>
             <h2 style="color: var(--text-primary); margin-bottom: 0.25rem;">Campaigns</h2>
             <p style="color: var(--text-secondary); font-size: 0.875rem;">
-                <?= View::escape($totalCampaigns) ?> total campaigns
+                <?= $viewHelper->escape($totalCampaigns) ?> total campaigns
             </p>
         </div>
         
         <?php if (Auth::hasPermission('campaigns.edit')): ?>
-            <a href="<?= View::url('campaigns/create') ?>?instance=<?= View::escape($instance['slug']) ?>" 
+            <a href="<?= $viewHelper->url('campaigns/create') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?>" 
                class="btn btn-primary btn-sm">
                 + Create Campaign
             </a>
@@ -30,7 +31,7 @@ View::set('title', 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME
                 
                 <?php if (Auth::hasPermission('campaigns.edit')): ?>
                     <div style="margin-top: 1rem;">
-                        <a href="<?= View::url('campaigns/create') ?>?instance=<?= View::escape($instance['slug']) ?>" 
+                        <a href="<?= $viewHelper->url('campaigns/create') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?>" 
                            class="btn btn-primary btn-sm">
                             Create Campaign
                         </a>
@@ -54,10 +55,10 @@ View::set('title', 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME
                         <tr>
                             <td>
                                 <div style="font-weight: 500; color: var(--text-primary);">
-                                    <?= View::escape($campaign['name']) ?>
+                                    <?= $viewHelper->escape($campaign['name']) ?>
                                 </div>
                                 <div style="color: var(--text-secondary); font-size: 0.75rem;">
-                                    by <?= View::escape($campaign['created_by_name']) ?>
+                                    by <?= $viewHelper->escape($campaign['created_by_name']) ?>
                                 </div>
                             </td>
                             <td>
@@ -96,7 +97,7 @@ View::set('title', 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME
                                             echo 'Monthly (Day ' . $campaign['monthly_day'] . ')';
                                             break;
                                         default:
-                                            echo View::escape($campaign['schedule_type']);
+                                            echo $viewHelper->escape($campaign['schedule_type']);
                                     }
                                     ?>
                                 </div>
@@ -104,10 +105,10 @@ View::set('title', 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME
                             <td>
                                 <?php if ($campaign['next_run_at']): ?>
                                     <div style="font-size: 0.875rem; color: var(--text-primary);">
-                                        <?= View::formatDate($campaign['next_run_at'], 'M j, Y H:i') ?>
+                                        <?= $viewHelper->formatDate($campaign['next_run_at'], 'M j, Y H:i') ?>
                                     </div>
                                     <div style="font-size: 0.75rem; color: var(--text-secondary);">
-                                        <?= View::timeAgo($campaign['next_run_at']) ?>
+                                        <?= $viewHelper->timeAgo($campaign['next_run_at']) ?>
                                     </div>
                                 <?php else: ?>
                                     <span style="color: var(--text-secondary); font-size: 0.875rem;">—</span>
@@ -115,27 +116,27 @@ View::set('title', 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME
                             </td>
                             <td>
                                 <span style="color: var(--text-secondary); font-size: 0.875rem;">
-                                    <?= View::formatDate($campaign['created_at'], 'M j, Y') ?>
+                                    <?= $viewHelper->formatDate($campaign['created_at'], 'M j, Y') ?>
                                 </span>
                             </td>
                             <td>
                                 <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
                                     <?php if (Auth::hasPermission('campaigns.execute') && $campaign['is_active']): ?>
-                                        <button onclick="runCampaign(<?= View::escape($campaign['id']) ?>)" 
+                                        <button onclick="runCampaign(<?= $viewHelper->escape($campaign['id']) ?>)" 
                                                 class="btn btn-primary btn-sm" title="Run Now">
                                             ▶️
                                         </button>
                                     <?php endif; ?>
                                     
                                     <?php if (Auth::hasPermission('campaigns.edit')): ?>
-                                        <a href="<?= View::url('campaigns/edit') ?>?id=<?= View::escape($campaign['id']) ?>" 
+                                        <a href="<?= $viewHelper->url('campaigns/edit') ?>&id=<?= $viewHelper->escape($campaign['id']) ?>" 
                                            class="btn btn-secondary btn-sm" title="Edit">
                                             ✏️
                                         </a>
                                     <?php endif; ?>
                                     
                                     <?php if (Auth::hasPermission('campaigns.edit')): ?>
-                                        <button onclick="deleteCampaign(<?= View::escape($campaign['id']) ?>, '<?= View::escape($campaign['name']) ?>')" 
+                                        <button onclick="deleteCampaign(<?= $viewHelper->escape($campaign['id']) ?>, '<?= $viewHelper->escape($campaign['name']) ?>')" 
                                                 class="btn btn-secondary btn-sm" title="Delete" style="color: var(--error);">
                                             🗑️
                                         </button>
@@ -157,7 +158,7 @@ View::set('title', 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME
                     ?>
                         <span class="btn btn-secondary" style="cursor: default;"><?= $i ?></span>
                         <?php else: ?>
-                        <a href="<?= View::url('campaigns/index') ?>?instance=<?= View::escape($instance['slug']) ?>&page=<?= $i ?>" 
+                        <a href="<?= $viewHelper->url('campaigns/index') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?>&page=<?= $i ?>" 
                            class="btn btn-secondary"><?= $i ?></a>
                         <?php endif; ?>
                     <?php endfor; ?>
@@ -167,6 +168,7 @@ View::set('title', 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME
     </div>
 </div>
 
+<<<<<<< HEAD
 <script>
 function getCsrfToken() {
     const meta = document.querySelector('meta[name="csrf-token"]');
@@ -195,6 +197,22 @@ function runCampaign(campaignId) {
         method: 'POST',
         body: formData
     })
+=======
+<script>
+function runCampaign(campaignId) {
+    if (!confirm('Are you sure you want to run this campaign now?')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('id', campaignId);
+    formData.append('instance', '<?= $viewHelper->escape($instance['slug']) ?>');
+    
+    fetch('<?= $viewHelper->url('campaigns/run') ?>', {
+        method: 'POST',
+        body: formData
+    })
+>>>>>>> main
     .then(response => response.json())
     .then(data => {
         if (data.success) {
@@ -210,6 +228,7 @@ function runCampaign(campaignId) {
     });
 }
 
+<<<<<<< HEAD
 function deleteCampaign(campaignId, campaignName) {
     if (!confirm(`Are you sure you want to delete campaign "${campaignName}"? This action cannot be undone.`)) {
         return;
@@ -225,6 +244,19 @@ function deleteCampaign(campaignId, campaignName) {
     fetch('<?= View::url('campaigns/delete') ?>', {
         method: 'POST',
         body: formData
+=======
+function deleteCampaign(campaignId, campaignName) {
+    if (!confirm(`Are you sure you want to delete campaign "${campaignName}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('id', campaignId);
+    
+    fetch('<?= $viewHelper->url('campaigns/delete') ?>', {
+        method: 'POST',
+        body: formData
+>>>>>>> main
     })
     .then(response => response.json())
     .then(data => {

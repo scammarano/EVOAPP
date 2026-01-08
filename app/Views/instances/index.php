@@ -25,7 +25,7 @@ $title = 'Instances - ' . APP_NAME;
             
             <?php if (Auth::hasPermission('instances.manage')): ?>
                 <div style="margin-top: 2rem;">
-                    <a href="<?= View::url('instances/create') ?>" class="btn btn-primary">
+                    <a href="<?= $viewHelper->url('instances/create') ?>" class="btn btn-primary">
                         Create Instance
                     </a>
                 </div>
@@ -61,7 +61,7 @@ $title = 'Instances - ' . APP_NAME;
                             <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                                 <span style="color: var(--text-secondary);">Last webhook:</span>
                                 <span style="color: var(--text-primary); font-size: 0.875rem;">
-                                    <?= View::timeAgo($instance['last_webhook_at']) ?>
+                                    <?= $viewHelper->timeAgo($instance['last_webhook_at']) ?>
                                 </span>
                             </div>
                         <?php endif; ?>
@@ -75,13 +75,13 @@ $title = 'Instances - ' . APP_NAME;
                     </div>
                     
                     <div class="instance-actions" style="display: flex; gap: 0.5rem;">
-                        <a href="<?= $viewHelper->url('inbox/index') ?>?instance=<?= $viewHelper->escape($instance['slug']) ?>" 
+                        <a href="<?= $viewHelper->url('inbox/index') ?>&instance=<?= $viewHelper->escape($instance['slug']) ?>" 
                            class="btn btn-primary btn-sm" style="flex: 1; text-align: center;">
                             Open Inbox
                         </a>
                         
                         <?php if (Auth::hasPermission('instances.manage')): ?>
-                            <a href="<?= $viewHelper->url('instances/edit') ?>?id=<?= $viewHelper->escape($instance['id']) ?>" 
+                            <a href="<?= $viewHelper->url('instances/edit') ?>&id=<?= $viewHelper->escape($instance['id']) ?>" 
                                class="btn btn-secondary btn-sm" title="Edit">
                                 ⚙️
                             </a>

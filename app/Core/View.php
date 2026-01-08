@@ -34,7 +34,19 @@ class View
         // Make View helper functions available in views
         $viewHelper = new class {
             public function escape($string) {
-                return htmlspecialchars($string, ENT_QUOTES, 'UTF-8');
+                if ($string === null) {
+                    return '';
+                }
+
+                if (is_bool($string)) {
+                    return $string ? '1' : '0';
+                }
+
+                if (is_array($string) || is_object($string)) {
+                    return '';
+                }
+
+                return htmlspecialchars((string)$string, ENT_QUOTES, 'UTF-8');
             }
             
             public function asset($path) {
