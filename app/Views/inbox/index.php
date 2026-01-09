@@ -29,7 +29,7 @@ if ($instanceProfile) {
 ?>
 
 <!-- Instance Header - Reducido -->
-<div class="instance-header" style="padding: 1rem 0; margin-bottom: 1rem;">
+<div class="instance-header inbox-instance-header">
     <div class="instance-info">
         <div class="instance-avatar">
             <?php if ($instanceProfile && $instanceProfile['profile_image_url']): ?>
@@ -70,8 +70,8 @@ if ($instanceProfile) {
     </div>
     
     <!-- Estadísticas Compactas -->
-    <div class="instance-stats" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-        <div class="stat-card" style="padding: 0.75rem; background: #f8f9fa; border-radius: 8px;">
+    <div class="instance-stats">
+        <div class="stat-card instance-stat-card">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span style="font-size: 1.5rem;">💬</span>
                 <div>
@@ -81,7 +81,7 @@ if ($instanceProfile) {
             </div>
         </div>
         
-        <div class="stat-card" style="padding: 0.75rem; background: #f8f9fa; border-radius: 8px;">
+        <div class="stat-card instance-stat-card">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span style="font-size: 1.5rem;">🔔</span>
                 <div>
@@ -91,7 +91,7 @@ if ($instanceProfile) {
             </div>
         </div>
         
-        <div class="stat-card" style="padding: 0.75rem; background: #f8f9fa; border-radius: 8px;">
+        <div class="stat-card instance-stat-card">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span style="font-size: 1.5rem;">📨</span>
                 <div>
@@ -103,14 +103,14 @@ if ($instanceProfile) {
     </div>
     
     <!-- Botones de Navegación -->
-    <div class="navigation-buttons" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-        <a href="index.php?r=campaigns/index&instance=<?= $viewHelper->escape($instance['slug']) ?>" class="btn btn-primary" style="text-decoration: none; padding: 0.5rem 1rem; background: #007bff; color: white; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.5rem;">
+    <div class="navigation-buttons">
+        <a href="index.php?r=campaigns/index&instance=<?= $viewHelper->escape($instance['slug']) ?>" class="btn btn-primary">
             📢 Campañas
         </a>
-        <a href="index.php?r=contacts/index&instance=<?= $viewHelper->escape($instance['slug']) ?>" class="btn btn-secondary" style="text-decoration: none; padding: 0.5rem 1rem; background: #6c757d; color: white; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.5rem;">
+        <a href="index.php?r=contacts/index&instance=<?= $viewHelper->escape($instance['slug']) ?>" class="btn btn-secondary">
             👥 Contactos
         </a>
-        <a href="index.php?r=audit/index" class="btn btn-info" style="text-decoration: none; padding: 0.5rem 1rem; background: #17a2b8; color: white; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.5rem;">
+        <a href="index.php?r=audit/index" class="btn btn-info">
             📋 Logs
         </a>
     </div>
@@ -120,9 +120,62 @@ if ($instanceProfile) {
 /* WhatsApp-style Layout */
 .whatsapp-container {
     display: flex;
-    height: calc(100vh - 80px);
+    height: calc(100vh - 260px);
+    min-height: 420px;
     background: #f0f2f5;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Instance Header */
+.inbox-instance-header {
+    padding: 1rem 0;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.instance-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1 1 280px;
+    min-width: 0;
+}
+
+.instance-details h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.instance-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+}
+
+.instance-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 0;
+}
+
+.instance-stat-card {
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    min-width: 140px;
+}
+
+.navigation-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 0;
 }
 
 /* Left Sidebar */
@@ -132,6 +185,26 @@ if ($instanceProfile) {
     border-right: 1px solid #e9ecef;
     display: flex;
     flex-direction: column;
+    transition: width 0.2s ease;
+}
+
+.chat-sidebar.collapsed {
+    width: 84px;
+}
+
+.chat-sidebar.collapsed .user-details,
+.chat-sidebar.collapsed .chat-info,
+.chat-sidebar.collapsed .chat-meta,
+.chat-sidebar.collapsed #search-bar {
+    display: none;
+}
+
+.chat-sidebar.collapsed .chat-item {
+    justify-content: center;
+}
+
+.chat-sidebar.collapsed .chat-avatar {
+    margin-right: 0;
 }
 
 .sidebar-header {
@@ -205,6 +278,16 @@ if ($instanceProfile) {
 .sidebar-actions {
     display: flex;
     gap: 0.5rem;
+}
+
+.sidebar-toggle-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.chat-sidebar.collapsed .sidebar-toggle-icon {
+    transform: rotate(180deg);
+    display: inline-block;
 }
 
 .btn-icon {
@@ -342,6 +425,7 @@ if ($instanceProfile) {
     display: flex;
     flex-direction: column;
     background: #e5ddd5;
+    min-width: 0;
 }
 
 .conversation-header {
@@ -391,6 +475,62 @@ if ($instanceProfile) {
 
 .conversation-actions {
     display: flex;
+    gap: 0.5rem;
+}
+
+/* Media Preview Column */
+.media-preview {
+    width: 320px;
+    background: white;
+    border-left: 1px solid #e9ecef;
+    display: flex;
+    flex-direction: column;
+}
+
+.media-preview-header {
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    color: #111b21;
+}
+
+.media-preview-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.media-preview-empty {
+    color: #666;
+    text-align: center;
+    margin-top: 3rem;
+}
+
+.media-preview-content img,
+.media-preview-content video,
+.media-preview-content iframe {
+    width: 100%;
+    border-radius: 8px;
+}
+
+.media-preview-content audio {
+    width: 100%;
+}
+
+.media-preview.hidden {
+    display: none;
+}
+
+.message-media-trigger {
+    cursor: pointer;
+    display: inline-flex;
+    flex-direction: column;
     gap: 0.5rem;
 }
 
@@ -701,6 +841,18 @@ if ($instanceProfile) {
         flex-wrap: wrap;
     }
 }
+
+@media (max-width: 1200px) {
+    .media-preview {
+        display: none;
+    }
+}
+
+@media (max-width: 900px) {
+    .whatsapp-container {
+        height: auto;
+    }
+}
 </style>
 
 <!-- WhatsApp-style Layout -->
@@ -731,6 +883,9 @@ if ($instanceProfile) {
                 </button>
                 <button class="btn-icon" onclick="newChat()" title="New chat">
                     <span class="icon-plus"></span>
+                </button>
+                <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" title="Collapse sidebar">
+                    <span class="sidebar-toggle-icon">⇤</span>
                 </button>
                 <button class="btn-icon" onclick="toggleMenu()" title="Menu">
                     <span class="icon-menu"></span>
@@ -905,6 +1060,21 @@ if ($instanceProfile) {
             </div>
         <?php endif; ?>
     </div>
+
+    <div class="media-preview hidden" id="media-preview">
+        <div class="media-preview-header">
+            <span>Vista previa</span>
+            <button class="btn-icon" onclick="clearMediaPreview()" title="Cerrar">
+                <span class="icon-close"></span>
+            </button>
+        </div>
+        <div class="media-preview-body">
+            <div class="media-preview-empty" id="media-preview-empty">
+                Selecciona un archivo para ver detalles.
+            </div>
+            <div class="media-preview-content" id="media-preview-content"></div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -920,6 +1090,13 @@ function toggleSearch() {
         document.getElementById('chat-search').focus();
     } else {
         searchBar.style.display = 'none';
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.querySelector('.chat-sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('collapsed');
     }
 }
 
@@ -1024,27 +1201,112 @@ function formatTime(timestamp, format) {
 }
 
 function renderMediaMessageHTML(message) {
-    // Simple media rendering - can be enhanced
+    const mediaUrl = message.media_url || message.local_path || '';
+    const name = message.body_text || 'Archivo';
+    const safeUrl = mediaUrl ? encodeURI(mediaUrl) : '';
+
+    const buildTrigger = (inner, type) => `
+        <div class="message-media-trigger" data-media-url="${safeUrl}" data-media-type="${type}" data-media-name="${name}">
+            ${inner}
+        </div>
+    `;
+
     switch (message.msg_type) {
         case 'image':
-            return message.media_url ? 
-                `<img src="${message.media_url}" style="max-width: 200px; border-radius: 0.5rem;" alt="Image">` :
+            return mediaUrl ?
+                buildTrigger(`<img src="${safeUrl}" style="max-width: 200px; border-radius: 0.5rem;" alt="Image">`, 'image') :
                 `<div class="message-text">📷${message.body_text ? ': ' + message.body_text : ''}</div>`;
         case 'video':
-            return message.media_url ? 
-                `<video controls style="max-width: 200px; border-radius: 0.5rem;"><source src="${message.media_url}"></video>` :
+            return mediaUrl ?
+                buildTrigger(`<video controls style="max-width: 200px; border-radius: 0.5rem;"><source src="${safeUrl}"></video>`, 'video') :
                 `<div class="message-text">🎥${message.body_text ? ': ' + message.body_text : ''}</div>`;
         case 'audio':
-            return message.media_url ? 
-                `<audio controls style="max-width: 200px;"><source src="${message.media_url}"></audio>` :
+            return mediaUrl ?
+                buildTrigger(`<audio controls style="max-width: 200px;"><source src="${safeUrl}"></audio>`, 'audio') :
                 `<div class="message-text">🎵${message.body_text ? ': ' + message.body_text : ''}</div>`;
-        case 'document':
-            return message.media_url ? 
-                `<div class="message-text">📄 <a href="${message.media_url}" target="_blank">${message.body_text || 'Document'}</a></div>` :
-                `<div class="message-text">📄 ${message.body_text || 'Document'}</div>`;
+        case 'document': {
+            if (!mediaUrl) {
+                return `<div class="message-text">📄 ${name}</div>`;
+            }
+            const lowerUrl = safeUrl.toLowerCase();
+            const isImageDoc = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].some(ext => lowerUrl.includes(ext));
+            const isPdf = lowerUrl.includes('.pdf');
+            if (isImageDoc) {
+                return buildTrigger(`<img src="${safeUrl}" style="max-width: 200px; border-radius: 0.5rem;" alt="Document">`, 'image');
+            }
+            return buildTrigger(`<div class="message-text">📄 <a href="${safeUrl}" target="_blank">${name}</a></div>`, isPdf ? 'pdf' : 'document');
+        }
+        case 'sticker':
+            return mediaUrl ?
+                buildTrigger(`<img src="${safeUrl}" style="max-width: 200px; border-radius: 0.5rem;" alt="Sticker">`, 'image') :
+                `<div class="message-text">😀 Sticker</div>`;
         default:
-            return `<div class="message-text">📎 ${message.body_text || 'Media'}</div>`;
+            if (mediaUrl) {
+                return buildTrigger(`<div class="message-text">📎 <a href="${safeUrl}" target="_blank">${name}</a></div>`, 'document');
+            }
+            return `<div class="message-text">📎 ${name}</div>`;
     }
+}
+
+function resolvePreviewType(type, url = '') {
+    const lowerUrl = url.toLowerCase();
+    if (type === 'document') {
+        if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].some(ext => lowerUrl.includes(ext))) {
+            return 'image';
+        }
+        if (lowerUrl.includes('.pdf')) {
+            return 'pdf';
+        }
+    }
+    return type;
+}
+
+function showMediaPreview({ url, type, name }) {
+    const preview = document.getElementById('media-preview');
+    const emptyState = document.getElementById('media-preview-empty');
+    const content = document.getElementById('media-preview-content');
+
+    if (!preview || !content || !url) return;
+
+    const resolvedType = resolvePreviewType(type, url);
+    preview.classList.remove('hidden');
+    emptyState.style.display = 'none';
+    content.innerHTML = '';
+
+    let mediaMarkup = '';
+    switch (resolvedType) {
+        case 'image':
+            mediaMarkup = `<img src="${url}" alt="${name}">`;
+            break;
+        case 'video':
+            mediaMarkup = `<video controls><source src="${url}"></video>`;
+            break;
+        case 'audio':
+            mediaMarkup = `<audio controls><source src="${url}"></audio>`;
+            break;
+        case 'pdf':
+            mediaMarkup = `<iframe src="${url}" style="min-height: 480px;" title="${name}"></iframe>`;
+            break;
+        default:
+            mediaMarkup = `<a href="${url}" target="_blank">Abrir ${name}</a>`;
+    }
+
+    content.innerHTML = `
+        <div><strong>${name}</strong></div>
+        <div>${mediaMarkup}</div>
+        <div><a href="${url}" target="_blank">Descargar archivo</a></div>
+    `;
+}
+
+function clearMediaPreview() {
+    const preview = document.getElementById('media-preview');
+    const emptyState = document.getElementById('media-preview-empty');
+    const content = document.getElementById('media-preview-content');
+
+    if (!preview || !content || !emptyState) return;
+    preview.classList.add('hidden');
+    content.innerHTML = '';
+    emptyState.style.display = 'block';
 }
 
 // Preload current instance for app.js
@@ -1083,6 +1345,19 @@ document.addEventListener('keydown', (e) => {
         if (searchBar && searchBar.style.display !== 'none') {
             toggleSearch();
         }
+    }
+});
+
+document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.message-media-trigger');
+    if (!trigger) return;
+
+    const url = trigger.dataset.mediaUrl;
+    const type = trigger.dataset.mediaType || 'document';
+    const name = trigger.dataset.mediaName || 'Archivo';
+
+    if (url) {
+        showMediaPreview({ url, type, name });
     }
 });
 
@@ -1333,42 +1608,74 @@ function insertEmoji(emoji) {
 // Helper function for rendering media messages
 function renderMediaMessage($message) {
     $content = '';
+    $mediaUrl = $message['local_path'] ?: $message['media_url'];
+    $safeUrl = $mediaUrl ? htmlspecialchars($mediaUrl, ENT_QUOTES, 'UTF-8') : null;
+    $mediaName = htmlspecialchars($message['body_text'] ?: 'Archivo', ENT_QUOTES, 'UTF-8');
+    $dataAttributes = $safeUrl ? ' data-media-url="' . $safeUrl . '" data-media-name="' . $mediaName . '"' : '';
+    $extension = $safeUrl ? strtolower(pathinfo(parse_url($safeUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION)) : '';
+    $isImageDoc = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true);
+    $isPdf = $extension === 'pdf';
     
     switch ($message['msg_type']) {
         case 'image':
-            if ($message['media_url']) {
-                $content = '<img src="' . htmlspecialchars($message['media_url'], ENT_QUOTES, 'UTF-8') . '" style="max-width: 200px; border-radius: 0.5rem;" alt="Image">';
+            if ($safeUrl) {
+                $content = '<div class="message-media-trigger" data-media-type="image"' . $dataAttributes . '>'
+                    . '<img src="' . $safeUrl . '" style="max-width: 200px; border-radius: 0.5rem;" alt="Image"></div>';
             } else {
                 $content = '<div class="message-text">📷 Image' . ($message['body_text'] ? ': ' . htmlspecialchars($message['body_text'], ENT_QUOTES, 'UTF-8') : '') . '</div>';
             }
             break;
             
         case 'video':
-            if ($message['media_url']) {
-                $content = '<video controls style="max-width: 200px; border-radius: 0.5rem;"><source src="' . htmlspecialchars($message['media_url'], ENT_QUOTES, 'UTF-8') . '"></video>';
+            if ($safeUrl) {
+                $content = '<div class="message-media-trigger" data-media-type="video"' . $dataAttributes . '>'
+                    . '<video controls style="max-width: 200px; border-radius: 0.5rem;"><source src="' . $safeUrl . '"></video></div>';
             } else {
                 $content = '<div class="message-text">🎥 Video' . ($message['body_text'] ? ': ' . htmlspecialchars($message['body_text'], ENT_QUOTES, 'UTF-8') : '') . '</div>';
             }
             break;
             
         case 'audio':
-            if ($message['media_url']) {
-                $content = '<audio controls style="max-width: 200px;"><source src="' . htmlspecialchars($message['media_url'], ENT_QUOTES, 'UTF-8') . '"></audio>';
+            if ($safeUrl) {
+                $content = '<div class="message-media-trigger" data-media-type="audio"' . $dataAttributes . '>'
+                    . '<audio controls style="max-width: 200px;"><source src="' . $safeUrl . '"></audio></div>';
             } else {
                 $content = '<div class="message-text">🎵 Audio' . ($message['body_text'] ? ': ' . htmlspecialchars($message['body_text'], ENT_QUOTES, 'UTF-8') : '') . '</div>';
             }
             break;
             
         case 'document':
-            if ($message['media_url']) {
-                $content = '<div class="message-text">📄 <a href="' . htmlspecialchars($message['media_url'], ENT_QUOTES, 'UTF-8') . '" target="_blank">' . htmlspecialchars($message['body_text'] ?: 'Document', ENT_QUOTES, 'UTF-8') . '</a></div>';
+            if ($safeUrl) {
+                $type = $isImageDoc ? 'image' : ($isPdf ? 'pdf' : 'document');
+                $content = '<div class="message-media-trigger" data-media-type="' . $type . '"' . $dataAttributes . '>';
+                if ($isImageDoc) {
+                    $content .= '<img src="' . $safeUrl . '" style="max-width: 200px; border-radius: 0.5rem;" alt="Document">';
+                } else {
+                    $content .= '<div class="message-text">📄 <a href="' . $safeUrl . '" target="_blank">' . $mediaName . '</a></div>';
+                }
+                $content .= '</div>';
             } else {
-                $content = '<div class="message-text">📄 ' . htmlspecialchars($message['body_text'] ?: 'Document', ENT_QUOTES, 'UTF-8') . '</div>';
+                $content = '<div class="message-text">📄 ' . $mediaName . '</div>';
+            }
+            break;
+
+        case 'sticker':
+            if ($safeUrl) {
+                $content = '<div class="message-media-trigger" data-media-type="image"' . $dataAttributes . '>'
+                    . '<img src="' . $safeUrl . '" style="max-width: 200px; border-radius: 0.5rem;" alt="Sticker"></div>';
+            } else {
+                $content = '<div class="message-text">😀 Sticker</div>';
             }
             break;
             
         default:
-            $content = '<div class="message-text">📎 ' . htmlspecialchars($message['body_text'] ?: 'Media', ENT_QUOTES, 'UTF-8') . '</div>';
+            if ($safeUrl) {
+                $content = '<div class="message-media-trigger" data-media-type="document"' . $dataAttributes . '>'
+                    . '<div class="message-text">📎 <a href="' . $safeUrl . '" target="_blank">' . $mediaName . '</a></div>'
+                    . '</div>';
+            } else {
+                $content = '<div class="message-text">📎 ' . $mediaName . '</div>';
+            }
     }
     
     return $content;
