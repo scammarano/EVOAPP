@@ -305,7 +305,7 @@ class DiagnosticController
             'number' => $number,
             'mediatype' => $mediaType,
             'mimetype' => $mimeType,
-            'media' => new \CURLFile($mediaPath, $mimeType, basename($mediaPath))
+            'file' => new \CURLFile($mediaPath, $mimeType, basename($mediaPath))
         ];
 
         if ($caption !== null && $caption !== '') {
