@@ -30,6 +30,14 @@ $title = 'Diagnostic - ' . APP_NAME;
                     <option value="media">📎 Mensaje con Adjunto</option>
                 </select>
             </div>
+            <div class="form-group media-only">
+                <label>Archivo adjunto:</label>
+                <input type="file" id="global-test-media" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
+            </div>
+            <div class="form-group media-only">
+                <label>Caption del adjunto:</label>
+                <input type="text" id="global-test-caption" placeholder="Texto del adjunto">
+            </div>
         </div>
         <div class="selection-tools">
             <label class="select-all-toggle">
@@ -117,6 +125,14 @@ $title = 'Diagnostic - ' . APP_NAME;
                 <div class="form-group">
                     <label>Mensaje de prueba:</label>
                     <textarea id="test-text" rows="3">Mensaje de prueba - EVOAPP Diagnostic</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Archivo adjunto:</label>
+                    <input type="file" id="test-media" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
+                </div>
+                <div class="form-group">
+                    <label>Caption del adjunto:</label>
+                    <input type="text" id="test-caption" placeholder="Texto del adjunto">
                 </div>
             </div>
             <div class="modal-footer">
@@ -441,6 +457,14 @@ $title = 'Diagnostic - ' . APP_NAME;
     font-size: 1.5rem;
     cursor: pointer;
 }
+
+.media-only {
+    display: none;
+}
+
+.media-only.is-visible {
+    display: block;
+}
 </style>
 
 <script>
@@ -456,6 +480,7 @@ function getDiagnosticState() {
         number: document.getElementById('global-test-number')?.value || '',
         text: document.getElementById('global-test-text')?.value || '',
         testType: document.getElementById('test-type')?.value || 'single',
+        caption: document.getElementById('global-test-caption')?.value || '',
         selectedInstanceIds: getSelectedInstanceIds()
     };
 }
@@ -483,6 +508,9 @@ function restoreDiagnosticState() {
         if (state.testType) {
             document.getElementById('test-type').value = state.testType;
         }
+        if (state.caption) {
+            document.getElementById('global-test-caption').value = state.caption;
+        }
         if (Array.isArray(state.selectedInstanceIds)) {
             document.querySelectorAll('.instance-checkbox').forEach(checkbox => {
                 checkbox.checked = state.selectedInstanceIds.includes(checkbox.value);
@@ -495,7 +523,7 @@ function restoreDiagnosticState() {
 
 function initDiagnosticStateHandlers() {
     restoreDiagnosticState();
-    ['global-test-number', 'global-test-text', 'test-type'].forEach(id => {
+    ['global-test-number', 'global-test-text', 'test-type', 'global-test-caption'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('input', saveDiagnosticState);
@@ -512,7 +540,21 @@ function initDiagnosticStateHandlers() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', initDiagnosticStateHandlers);
+function updateMediaFieldsVisibility() {
+    const isMedia = document.getElementById('test-type')?.value === 'media';
+    document.querySelectorAll('.media-only').forEach(element => {
+        element.classList.toggle('is-visible', isMedia);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initDiagnosticStateHandlers();
+    updateMediaFieldsVisibility();
+    const testTypeSelect = document.getElementById('test-type');
+    if (testTypeSelect) {
+        testTypeSelect.addEventListener('change', updateMediaFieldsVisibility);
+    }
+});
 
 function testInstance(instanceId) {
     console.log('Iniciando prueba para instancia:', instanceId);
@@ -521,15 +563,33 @@ function testInstance(instanceId) {
     const number = document.getElementById('global-test-number').value;
     const text = document.getElementById('global-test-text').value;
     const testType = document.getElementById('test-type').value;
+    const caption = document.getElementById('global-test-caption').value;
+    const mediaFile = document.getElementById('global-test-media').files[0] || null;
     
     console.log('Enviando petición:', { instanceId, number, text, testType });
-    
+
+    let requestBody;
+    let requestHeaders = {};
+
+    if (testType === 'media') {
+        requestBody = new FormData();
+        requestBody.append('instance_id', instanceId);
+        requestBody.append('test_number', number);
+        requestBody.append('test_text', text);
+        requestBody.append('test_type', testType);
+        requestBody.append('test_caption', caption);
+        if (mediaFile) {
+            requestBody.append('test_media', mediaFile);
+        }
+    } else {
+        requestHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+        requestBody = `instance_id=${instanceId}&test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}&test_type=${testType}`;
+    }
+
     fetch('index.php?r=diagnostic/testInstance', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `instance_id=${instanceId}&test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}&test_type=${testType}`
+        headers: requestHeaders,
+        body: requestBody
     })
     .then(response => {
         console.log('Respuesta recibida:', response);
@@ -562,16 +622,35 @@ function sendTestMessage() {
     
     const number = document.getElementById('test-number').value;
     const text = document.getElementById('test-text').value;
+    const caption = document.getElementById('test-caption').value;
+    const mediaFile = document.getElementById('test-media').files[0] || null;
+    const testType = mediaFile ? 'media' : 'single';
     
     updateStatus(currentInstanceId, 'testing', 'Enviando...');
     closeModal();
     
+    let requestBody;
+    let requestHeaders = {};
+
+    if (testType === 'media') {
+        requestBody = new FormData();
+        requestBody.append('instance_id', currentInstanceId);
+        requestBody.append('test_number', number);
+        requestBody.append('test_text', text);
+        requestBody.append('test_type', testType);
+        requestBody.append('test_caption', caption);
+        if (mediaFile) {
+            requestBody.append('test_media', mediaFile);
+        }
+    } else {
+        requestHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+        requestBody = `instance_id=${currentInstanceId}&test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}`;
+    }
+
     fetch('index.php?r=diagnostic/testInstance', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `instance_id=${currentInstanceId}&test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}`
+        headers: requestHeaders,
+        body: requestBody
     })
     .then(response => response.json())
     .then(data => {
@@ -603,15 +682,33 @@ function testAllInstances() {
     const number = document.getElementById('global-test-number').value;
     const text = document.getElementById('global-test-text').value;
     const testType = document.getElementById('test-type').value;
+    const caption = document.getElementById('global-test-caption').value;
+    const mediaFile = document.getElementById('global-test-media').files[0] || null;
     
     console.log('Enviando peticiones masivas:', { number, text, testType, instanceIdsToTest });
-    
+
+    let requestBody;
+    let requestHeaders = {};
+
+    if (testType === 'media') {
+        requestBody = new FormData();
+        requestBody.append('test_number', number);
+        requestBody.append('test_text', text);
+        requestBody.append('test_type', testType);
+        requestBody.append('test_caption', caption);
+        requestBody.append('instance_ids', instanceIdsToTest.join(','));
+        if (mediaFile) {
+            requestBody.append('test_media', mediaFile);
+        }
+    } else {
+        requestHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+        requestBody = `test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}&test_type=${encodeURIComponent(testType)}&instance_ids=${encodeURIComponent(instanceIdsToTest.join(','))}`;
+    }
+
     fetch('index.php?r=diagnostic/testAll', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}&test_type=${encodeURIComponent(testType)}&instance_ids=${encodeURIComponent(instanceIdsToTest.join(','))}`
+        headers: requestHeaders,
+        body: requestBody
     })
     .then(response => {
         console.log('Respuesta masiva recibida:', response);
