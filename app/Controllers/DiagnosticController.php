@@ -66,8 +66,15 @@ class DiagnosticController
         
         $testNumber = $_POST['test_number'] ?? '+10000000000';
         $testText = $_POST['test_text'] ?? 'Test masivo - EVOAPP';
+        $testType = $_POST['test_type'] ?? 'single';
+        $requestedIds = array_filter(array_map('intval', explode(',', $_POST['instance_ids'] ?? '')));
         
         $instances = Instance::getAll(false);
+        if (!empty($requestedIds)) {
+            $instances = array_values(array_filter($instances, function ($instance) use ($requestedIds) {
+                return in_array((int)$instance['id'], $requestedIds, true);
+            }));
+        }
         $results = [];
         
         foreach ($instances as $instance) {
@@ -75,7 +82,7 @@ class DiagnosticController
                 // Pausa entre pruebas para no sobrecargar
                 usleep(500000); // 0.5 segundos de pausa
                 
-                $result = $this->testInstanceConnection($instance, $testNumber, $testText);
+                $result = $this->testInstanceConnection($instance, $testNumber, $testText, $testType);
                 $results[] = [
                     'instance' => $instance,
                     'result' => $result,
