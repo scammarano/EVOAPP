@@ -5,8 +5,11 @@ $title = 'Diagnostic - ' . APP_NAME;
 
 <div class="diagnostic-container">
     <div class="diagnostic-header">
-        <h1>🔍 Diagnóstico de Instancias</h1>
-        <p>Prueba la conexión y envío de mensajes de todas las instancias Evolution API</p>
+        <div class="diagnostic-logo" aria-hidden="true">EVO</div>
+        <div>
+            <h1>🔍 Diagnóstico de Instancias</h1>
+            <p>Prueba la conexión y envío de mensajes de todas las instancias Evolution API</p>
+        </div>
     </div>
     
     <div class="diagnostic-actions">
@@ -70,8 +73,8 @@ $title = 'Diagnostic - ' . APP_NAME;
                         <span><?= $instance['api_key'] ? substr($instance['api_key'], 0, 8) . '...' : 'No configurada' ?></span>
                     </div>
                     <div class="info-item">
-                        <label>Webhook:</label>
-                        <span><?= $instance['last_webhook_at'] ? date('d/m H:i', strtotime($instance['last_webhook_at'])) : 'Nunca' ?></span>
+                        <label>Último webhook recibido:</label>
+                        <span><?= $instance['last_webhook_at'] ? date('d/m H:i', strtotime($instance['last_webhook_at'])) : 'Sin eventos' ?></span>
                     </div>
                 </div>
                 
@@ -84,8 +87,16 @@ $title = 'Diagnostic - ' . APP_NAME;
                     </button>
                 </div>
                 
-                <div class="test-results" id="results-<?= $instance['id'] ?>" style="display: none;">
-                    <!-- Results will be loaded here -->
+                <div class="test-results" id="results-<?= $instance['id'] ?>" data-empty="true">
+                    <div class="results-screen is-idle">
+                        <div class="screen-header">
+                            <span class="screen-dot"></span>
+                            Resultado de pruebas
+                        </div>
+                        <div class="screen-body">
+                            Ejecuta una prueba para ver el resultado aquí.
+                        </div>
+                    </div>
                 </div>
             </div>
         <?php endforeach; ?>
@@ -120,13 +131,16 @@ $title = 'Diagnostic - ' . APP_NAME;
 .diagnostic-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 1.5rem;
     color: #212529;
 }
 
 .diagnostic-header {
-    text-align: center;
-    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .diagnostic-header h1 {
@@ -134,20 +148,35 @@ $title = 'Diagnostic - ' . APP_NAME;
     margin-bottom: 0.5rem;
 }
 
+.diagnostic-logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #1b7edb, #4aa3ff);
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+    font-size: 0.9rem;
+}
+
 .diagnostic-actions {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .test-config {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 1rem;
-    padding: 1rem;
+    padding: 0.85rem;
     background: #f8f9fa;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid #e9ecef;
 }
 
@@ -188,17 +217,20 @@ $title = 'Diagnostic - ' . APP_NAME;
 
 .instances-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1rem;
 }
 
 .instance-card {
     background: white;
     border-radius: 8px;
-    padding: 1.5rem;
+    padding: 1rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border: 1px solid #e9ecef;
     color: #212529;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .instance-header {
@@ -207,7 +239,6 @@ $title = 'Diagnostic - ' . APP_NAME;
     gap: 0.75rem;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid #e9ecef;
 }
@@ -215,6 +246,7 @@ $title = 'Diagnostic - ' . APP_NAME;
 .instance-header h3 {
     margin: 0;
     color: var(--text-primary);
+    font-size: 1rem;
 }
 
 .instance-status {
@@ -248,14 +280,14 @@ $title = 'Diagnostic - ' . APP_NAME;
 }
 
 .instance-info {
-    margin-bottom: 1rem;
+    display: grid;
+    gap: 0.35rem;
 }
 
 .info-item {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
+    display: grid;
+    gap: 0.15rem;
+    font-size: 0.85rem;
 }
 
 .info-item label {
@@ -266,26 +298,63 @@ $title = 'Diagnostic - ' . APP_NAME;
 .instance-actions {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 1rem;
 }
 
 .test-results {
-    margin-top: 1rem;
-    padding: 1rem;
-    background: #f8f9fa;
-    border-radius: 4px;
-    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+
+.results-screen {
+    border: 1px solid #d8e2f0;
+    border-radius: 10px;
+    background: #f9fbff;
+    overflow: hidden;
+    font-size: 0.82rem;
     color: #212529;
 }
 
-.test-result {
+.results-screen.is-idle .screen-body {
+    color: #6c757d;
+}
+
+.screen-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    background: #e9f0fb;
+    border-bottom: 1px solid #d8e2f0;
+    font-weight: 600;
+}
+
+.screen-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #6c757d;
+}
+
+.results-screen.is-success .screen-dot {
+    background: #28a745;
+}
+
+.results-screen.is-error .screen-dot {
+    background: #dc3545;
+}
+
+.screen-body {
+    padding: 0.75rem;
+}
+
+.test-results .test-result {
     margin-bottom: 0.5rem;
-    padding: 0.5rem;
-    border-radius: 4px;
+    padding: 0.5rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
 }
 
 .test-result.info {
-    background: #e3f2fd;
+    background: #eaf2ff;
     color: #0d47a1;
 }
 
@@ -380,6 +449,70 @@ window.evoappDisablePolling = true;
 
 <script>
 let currentInstanceId = null;
+const diagnosticStorageKey = 'evoapp-diagnostic-state';
+
+function getDiagnosticState() {
+    return {
+        number: document.getElementById('global-test-number')?.value || '',
+        text: document.getElementById('global-test-text')?.value || '',
+        testType: document.getElementById('test-type')?.value || 'single',
+        selectedInstanceIds: getSelectedInstanceIds()
+    };
+}
+
+function saveDiagnosticState() {
+    try {
+        const state = getDiagnosticState();
+        sessionStorage.setItem(diagnosticStorageKey, JSON.stringify(state));
+    } catch (error) {
+        console.warn('No se pudo guardar el estado de diagnóstico:', error);
+    }
+}
+
+function restoreDiagnosticState() {
+    try {
+        const raw = sessionStorage.getItem(diagnosticStorageKey);
+        if (!raw) return;
+        const state = JSON.parse(raw);
+        if (state.number) {
+            document.getElementById('global-test-number').value = state.number;
+        }
+        if (state.text) {
+            document.getElementById('global-test-text').value = state.text;
+        }
+        if (state.testType) {
+            document.getElementById('test-type').value = state.testType;
+        }
+        if (Array.isArray(state.selectedInstanceIds)) {
+            document.querySelectorAll('.instance-checkbox').forEach(checkbox => {
+                checkbox.checked = state.selectedInstanceIds.includes(checkbox.value);
+            });
+        }
+    } catch (error) {
+        console.warn('No se pudo restaurar el estado de diagnóstico:', error);
+    }
+}
+
+function initDiagnosticStateHandlers() {
+    restoreDiagnosticState();
+    ['global-test-number', 'global-test-text', 'test-type'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', saveDiagnosticState);
+            el.addEventListener('change', saveDiagnosticState);
+        }
+    });
+    document.querySelectorAll('.instance-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', saveDiagnosticState);
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && event.target.closest('.diagnostic-actions')) {
+            event.preventDefault();
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initDiagnosticStateHandlers);
 
 function testInstance(instanceId) {
     console.log('Iniciando prueba para instancia:', instanceId);
@@ -515,9 +648,9 @@ function updateStatus(instanceId, status, text) {
 
 function displayResults(instanceId, result) {
     const resultsEl = document.getElementById(`results-${instanceId}`);
-    resultsEl.style.display = 'block';
+    resultsEl.dataset.empty = 'false';
     
-    let html = '<div class="test-results">';
+    let html = '';
     
     // Instance info
     if (result.instance_slug) {
@@ -589,18 +722,24 @@ function displayResults(instanceId, result) {
         html += '</div>';
     }
     
-    html += '</div>';
-    resultsEl.innerHTML = html;
+    renderResultsPanel(resultsEl, html, 'is-success');
 }
 
 function displayError(instanceId, error) {
     const resultsEl = document.getElementById(`results-${instanceId}`);
-    resultsEl.style.display = 'block';
+    resultsEl.dataset.empty = 'false';
+    const html = `<div class="test-result error"><strong>Error:</strong> ${error}</div>`;
+    renderResultsPanel(resultsEl, html, 'is-error');
+}
+
+function renderResultsPanel(resultsEl, contentHtml, statusClass) {
     resultsEl.innerHTML = `
-        <div class="test-results">
-            <div class="test-result error">
-                <strong>Error:</strong> ${error}
+        <div class="results-screen ${statusClass}">
+            <div class="screen-header">
+                <span class="screen-dot"></span>
+                Resultado de pruebas
             </div>
+            <div class="screen-body">${contentHtml}</div>
         </div>
     `;
 }
@@ -611,6 +750,7 @@ function closeModal() {
 }
 
 function refreshInstances() {
+    saveDiagnosticState();
     window.location.reload();
 }
 
@@ -618,6 +758,7 @@ function toggleAllInstances(checked) {
     document.querySelectorAll('.instance-checkbox').forEach(checkbox => {
         checkbox.checked = checked;
     });
+    saveDiagnosticState();
 }
 
 function getSelectedInstanceIds() {
