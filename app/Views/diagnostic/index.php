@@ -28,6 +28,13 @@ $title = 'Diagnostic - ' . APP_NAME;
                 </select>
             </div>
         </div>
+        <div class="selection-tools">
+            <label class="select-all-toggle">
+                <input type="checkbox" id="select-all-instances" onchange="toggleAllInstances(this.checked)">
+                Seleccionar todas las instancias
+            </label>
+            <span class="selection-hint">Si seleccionas alguna, solo se probarán esas instancias.</span>
+        </div>
         <div class="action-buttons">
             <button type="button" class="btn btn-primary" onclick="testAllInstances()">
                 🚀 Probar Todas las Instancias
@@ -43,6 +50,10 @@ $title = 'Diagnostic - ' . APP_NAME;
             <div class="instance-card" id="instance-<?= $instance['id'] ?>">
                 <div class="instance-header">
                     <h3><?= $viewHelper->escape($instance['slug']) ?></h3>
+                    <label class="instance-select">
+                        <input type="checkbox" class="instance-checkbox" value="<?= $instance['id'] ?>">
+                        Seleccionar
+                    </label>
                     <div class="instance-status" id="status-<?= $instance['id'] ?>">
                         <span class="status-dot unknown"></span>
                         <span class="status-text">Sin probar</span>
@@ -110,6 +121,7 @@ $title = 'Diagnostic - ' . APP_NAME;
     max-width: 1200px;
     margin: 0 auto;
     padding: 2rem;
+    color: #212529;
 }
 
 .diagnostic-header {
@@ -139,6 +151,26 @@ $title = 'Diagnostic - ' . APP_NAME;
     border: 1px solid #e9ecef;
 }
 
+.selection-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: center;
+    color: #212529;
+}
+
+.select-all-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.selection-hint {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
 .form-group select {
     width: 100%;
     padding: 0.5rem;
@@ -166,10 +198,13 @@ $title = 'Diagnostic - ' . APP_NAME;
     padding: 1.5rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border: 1px solid #e9ecef;
+    color: #212529;
 }
 
 .instance-header {
     display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
@@ -186,6 +221,14 @@ $title = 'Diagnostic - ' . APP_NAME;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.instance-select {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    color: #495057;
 }
 
 .status-dot {
@@ -232,6 +275,7 @@ $title = 'Diagnostic - ' . APP_NAME;
     background: #f8f9fa;
     border-radius: 4px;
     font-size: 0.85rem;
+    color: #212529;
 }
 
 .test-result {
@@ -331,11 +375,13 @@ $title = 'Diagnostic - ' . APP_NAME;
 </style>
 
 <script>
+window.evoappDisablePolling = true;
+</script>
+
+<script>
 let currentInstanceId = null;
 
 function testInstance(instanceId) {
-    event.preventDefault(); // Prevenir cualquier comportamiento por defecto
-    
     console.log('Iniciando prueba para instancia:', instanceId);
     updateStatus(instanceId, 'testing', 'Probando...');
     
@@ -411,27 +457,28 @@ function sendTestMessage() {
 }
 
 function testAllInstances() {
-    event.preventDefault(); // Prevenir cualquier comportamiento por defecto
-    
     console.log('Iniciando pruebas masivas');
-    
-    const cards = document.querySelectorAll('.instance-card');
-    cards.forEach(card => {
-        const instanceId = card.id.replace('instance-', '');
+    const selectedInstanceIds = getSelectedInstanceIds();
+    const instanceIdsToTest = selectedInstanceIds.length
+        ? selectedInstanceIds
+        : Array.from(document.querySelectorAll('.instance-card')).map(card => card.id.replace('instance-', ''));
+
+    instanceIdsToTest.forEach(instanceId => {
         updateStatus(instanceId, 'testing', 'Probando...');
     });
     
     const number = document.getElementById('global-test-number').value;
     const text = document.getElementById('global-test-text').value;
+    const testType = document.getElementById('test-type').value;
     
-    console.log('Enviando peticiones masivas:', { number, text });
+    console.log('Enviando peticiones masivas:', { number, text, testType, instanceIdsToTest });
     
     fetch('index.php?r=diagnostic/testAll', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}`
+        body: `test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}&test_type=${encodeURIComponent(testType)}&instance_ids=${encodeURIComponent(instanceIdsToTest.join(','))}`
     })
     .then(response => {
         console.log('Respuesta masiva recibida:', response);
@@ -565,5 +612,16 @@ function closeModal() {
 
 function refreshInstances() {
     window.location.reload();
+}
+
+function toggleAllInstances(checked) {
+    document.querySelectorAll('.instance-checkbox').forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+}
+
+function getSelectedInstanceIds() {
+    return Array.from(document.querySelectorAll('.instance-checkbox:checked'))
+        .map(checkbox => checkbox.value);
 }
 </script>

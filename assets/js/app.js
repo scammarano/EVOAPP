@@ -21,7 +21,9 @@ class EVOAPP {
             };
         }
         this.setupEventListeners();
-        this.startPolling();
+        if (!window.evoappDisablePolling) {
+            this.startPolling();
+        }
     }
 
     initCurrentInstance() {
