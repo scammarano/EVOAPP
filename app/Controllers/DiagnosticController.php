@@ -35,6 +35,7 @@ class DiagnosticController
         $testNumber = $_POST['test_number'] ?? '+10000000000';
         $testText = $_POST['test_text'] ?? 'Mensaje de prueba - EVOAPP Diagnostic';
         $testType = $_POST['test_type'] ?? 'single'; // single, burst, media
+        $testCaption = $_POST['test_caption'] ?? '';
         
         if (!$instanceId) {
             echo json_encode(['error' => 'Instance ID required']);
@@ -47,11 +48,17 @@ class DiagnosticController
             return;
         }
         
+        $mediaUpload = null;
         try {
-            $result = $this->testInstanceConnection($instance, $testNumber, $testText, $testType);
+            $mediaUpload = $this->prepareUploadedMedia('test_media');
+            $result = $this->testInstanceConnection($instance, $testNumber, $testText, $testType, $testCaption, $mediaUpload);
             echo json_encode(['success' => true, 'result' => $result]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        } finally {
+            if (!empty($mediaUpload['cleanup']) && !empty($mediaUpload['path']) && file_exists($mediaUpload['path'])) {
+                @unlink($mediaUpload['path']);
+            }
         }
     }
     
@@ -67,6 +74,7 @@ class DiagnosticController
         $testNumber = $_POST['test_number'] ?? '+10000000000';
         $testText = $_POST['test_text'] ?? 'Test masivo - EVOAPP';
         $testType = $_POST['test_type'] ?? 'single';
+        $testCaption = $_POST['test_caption'] ?? '';
         $requestedIds = array_filter(array_map('intval', explode(',', $_POST['instance_ids'] ?? '')));
         
         $instances = Instance::getAll(false);
@@ -77,12 +85,20 @@ class DiagnosticController
         }
         $results = [];
         
+        $mediaUpload = null;
+        try {
+            $mediaUpload = $this->prepareUploadedMedia('test_media');
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            return;
+        }
+
         foreach ($instances as $instance) {
             try {
                 // Pausa entre pruebas para no sobrecargar
                 usleep(500000); // 0.5 segundos de pausa
-                
-                $result = $this->testInstanceConnection($instance, $testNumber, $testText, $testType);
+
+                $result = $this->testInstanceConnection($instance, $testNumber, $testText, $testType, $testCaption, $mediaUpload);
                 $results[] = [
                     'instance' => $instance,
                     'result' => $result,
@@ -96,11 +112,15 @@ class DiagnosticController
                 ];
             }
         }
+
+        if (!empty($mediaUpload['cleanup']) && !empty($mediaUpload['path']) && file_exists($mediaUpload['path'])) {
+            @unlink($mediaUpload['path']);
+        }
         
         echo json_encode(['success' => true, 'results' => $results]);
     }
     
-    private function testInstanceConnection($instance, $number, $text, $testType = 'single')
+    private function testInstanceConnection($instance, $number, $text, $testType = 'single', $caption = '', $mediaUpload = null)
     {
         $baseUrl = $instance['base_url'] ?: EVO_BASE_URL;
         $apiKey = $instance['api_key'];
@@ -127,7 +147,14 @@ class DiagnosticController
                     $results['burst'] = $this->testBurstMessages($baseUrl, $instance['slug'], $apiKey, $number, $text);
                     break;
                 case 'media':
-                    $results['media'] = $this->testMediaMessage($baseUrl, $instance['slug'], $apiKey, $number, $text);
+                    $results['media'] = $this->testMediaMessage(
+                        $baseUrl,
+                        $instance['slug'],
+                        $apiKey,
+                        $number,
+                        $caption !== '' ? $caption : $text,
+                        $mediaUpload
+                    );
                     break;
                 case 'single':
                 default:
@@ -165,20 +192,33 @@ class DiagnosticController
         return $burstResults;
     }
     
-    private function testMediaMessage($baseUrl, $slug, $apiKey, $number, $caption)
+    private function testMediaMessage($baseUrl, $slug, $apiKey, $number, $caption, $mediaUpload = null)
     {
         $trimmedCaption = trim((string)$caption);
         $payloadCaption = $trimmedCaption === '' ? null : $trimmedCaption;
 
-        $mediaPath = $this->createDiagnosticMediaTempFile();
-        if (!$mediaPath) {
-            return [
-                'code' => -1,
-                'time' => 0,
-                'error' => 'No se pudo generar el archivo de prueba',
-                'response' => null,
-                'url' => null
-            ];
+        $mediaPath = null;
+        $mimeType = 'image/png';
+        $mediaType = 'image';
+        $shouldCleanup = false;
+
+        if ($mediaUpload && !empty($mediaUpload['path']) && file_exists($mediaUpload['path'])) {
+            $mediaPath = $mediaUpload['path'];
+            $mimeType = $mediaUpload['mimeType'] ?? 'application/octet-stream';
+            $mediaType = $mediaUpload['mediaType'] ?? 'document';
+            $shouldCleanup = !empty($mediaUpload['cleanup']);
+        } else {
+            $mediaPath = $this->createDiagnosticMediaTempFile();
+            if (!$mediaPath) {
+                return [
+                    'code' => -1,
+                    'time' => 0,
+                    'error' => 'No se pudo generar el archivo de prueba',
+                    'response' => null,
+                    'url' => null
+                ];
+            }
+            $shouldCleanup = true;
         }
 
         try {
@@ -188,15 +228,17 @@ class DiagnosticController
                 $apiKey,
                 $number,
                 $mediaPath,
-                'image',
-                'image/png',
+                $mediaType,
+                $mimeType,
                 $payloadCaption
             );
         } finally {
-            if (file_exists($mediaPath)) {
+            if ($shouldCleanup && $mediaPath && file_exists($mediaPath)) {
                 unlink($mediaPath);
             }
-            @unlink($mediaPath);
+            if ($shouldCleanup && $mediaPath) {
+                @unlink($mediaPath);
+            }
         }
     }
     
@@ -263,7 +305,7 @@ class DiagnosticController
             'number' => $number,
             'mediatype' => $mediaType,
             'mimetype' => $mimeType,
-            'media' => new \CURLFile($mediaPath, $mimeType, basename($mediaPath))
+            'file' => new \CURLFile($mediaPath, $mimeType, basename($mediaPath))
         ];
 
         if ($caption !== null && $caption !== '') {
@@ -344,5 +386,63 @@ class DiagnosticController
 
         @unlink($tempPath);
         return $pngPath;
+    }
+
+    private function prepareUploadedMedia($fileKey)
+    {
+        if (!isset($_FILES[$fileKey]) || !is_array($_FILES[$fileKey])) {
+            return null;
+        }
+
+        $file = $_FILES[$fileKey];
+        if ($file['error'] === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            throw new \Exception('Error al subir el archivo adjunto');
+        }
+
+        $extension = pathinfo($file['name'] ?? '', PATHINFO_EXTENSION);
+        $tempPath = tempnam(sys_get_temp_dir(), 'diag_upload_');
+        if ($tempPath === false) {
+            throw new \Exception('No se pudo preparar el archivo adjunto');
+        }
+
+        $targetPath = $extension ? $tempPath . '.' . $extension : $tempPath;
+        if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+            @unlink($tempPath);
+            throw new \Exception('No se pudo guardar el archivo adjunto');
+        }
+
+        if ($targetPath !== $tempPath && file_exists($tempPath)) {
+            @unlink($tempPath);
+        }
+
+        $mimeType = $file['type'] ?? '';
+        if ($mimeType === '' && function_exists('mime_content_type')) {
+            $mimeType = mime_content_type($targetPath) ?: 'application/octet-stream';
+        }
+
+        return [
+            'path' => $targetPath,
+            'mimeType' => $mimeType ?: 'application/octet-stream',
+            'mediaType' => $this->resolveMediaType($mimeType ?: 'application/octet-stream'),
+            'cleanup' => true
+        ];
+    }
+
+    private function resolveMediaType($mimeType)
+    {
+        if (strpos($mimeType, 'image/') === 0) {
+            return 'image';
+        }
+        if (strpos($mimeType, 'video/') === 0) {
+            return 'video';
+        }
+        if (strpos($mimeType, 'audio/') === 0) {
+            return 'audio';
+        }
+        return 'document';
     }
 }
