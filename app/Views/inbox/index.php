@@ -1024,6 +1024,9 @@ if ($instanceProfile) {
                     </div>
                 </div>
                 <div class="conversation-actions">
+                    <button class="btn-icon" onclick="refreshInstanceData(this)" title="Refrescar mensajes">
+                        <span class="icon-refresh"></span>
+                    </button>
                     <button class="btn-icon" onclick="searchInChat()" title="Search messages">
                         <span class="icon-search"></span>
                     </button>
@@ -1411,9 +1414,9 @@ function renderChatList(chats) {
 }
 
 function refreshChatList() {
-    if (!window.evoappInitialInstance) return;
+    if (!window.evoappInitialInstance) return Promise.resolve();
 
-    fetch(`index.php?r=inbox/chats&instance=${window.evoappInitialInstance}&page=1`)
+    return fetch(`index.php?r=inbox/chats&instance=${window.evoappInitialInstance}&page=1`)
         .then(response => response.json())
         .then(data => {
             if (data.success && Array.isArray(data.chats)) {
@@ -1424,11 +1427,11 @@ function refreshChatList() {
 }
 
 function refreshCurrentMessages() {
-    if (!window.evoappInitialChat || !window.evoappInitialChat.id) return;
+    if (!window.evoappInitialChat || !window.evoappInitialChat.id) return Promise.resolve();
     const container = document.getElementById('messages-container');
-    if (!container) return;
+    if (!container) return Promise.resolve();
 
-    fetch(`index.php?r=inbox/messages&instance=${window.evoappInitialInstance}&chat_id=${window.evoappInitialChat.id}&page=1`)
+    return fetch(`index.php?r=inbox/messages&instance=${window.evoappInitialInstance}&chat_id=${window.evoappInitialChat.id}&page=1`)
         .then(response => response.json())
         .then(data => {
             if (!data.success || !Array.isArray(data.messages)) return;
@@ -1468,9 +1471,9 @@ function refreshCurrentMessages() {
 }
 
 function refreshInstanceStats() {
-    if (!window.evoappInitialInstance) return;
+    if (!window.evoappInitialInstance) return Promise.resolve();
 
-    fetch(`index.php?r=inbox/stats&instance=${window.evoappInitialInstance}`)
+    return fetch(`index.php?r=inbox/stats&instance=${window.evoappInitialInstance}`)
         .then(response => response.json())
         .then(data => {
             if (!data.success || !data.stats) return;
@@ -1483,6 +1486,24 @@ function refreshInstanceStats() {
             if (messageCount) messageCount.textContent = data.stats.message_count ?? 0;
         })
         .catch(error => console.error('Error refreshing stats:', error));
+}
+
+function refreshInstanceData(triggerButton = null) {
+    if (triggerButton) {
+        triggerButton.classList.add('is-loading');
+        triggerButton.disabled = true;
+    }
+
+    return Promise.allSettled([
+        refreshChatList(),
+        refreshCurrentMessages(),
+        refreshInstanceStats()
+    ]).finally(() => {
+        if (triggerButton) {
+            triggerButton.classList.remove('is-loading');
+            triggerButton.disabled = false;
+        }
+    });
 }
 
 let inboxRefreshTimer = null;
