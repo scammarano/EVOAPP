@@ -253,6 +253,34 @@ class Campaign
     {
         DB::q("DELETE FROM campaign_messages WHERE id = ?", [$id]);
     }
+
+    public static function replaceMessages($campaignId, $messages)
+    {
+        DB::q("DELETE FROM campaign_messages WHERE campaign_id = ?", [$campaignId]);
+
+        foreach ($messages as $index => $message) {
+            $text = trim($message['text'] ?? '');
+            $mediaPath = trim($message['media_path'] ?? '');
+            $mediaType = trim($message['media_type'] ?? '');
+            $caption = trim($message['caption'] ?? '');
+
+            if ($text === '' && $mediaPath === '') {
+                continue;
+            }
+
+            DB::q("
+                INSERT INTO campaign_messages (campaign_id, sort_order, text, media_path, media_type, caption)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ", [
+                $campaignId,
+                $index + 1,
+                $text,
+                $mediaPath !== '' ? $mediaPath : null,
+                $mediaType !== '' ? $mediaType : null,
+                $caption !== '' ? $caption : null
+            ]);
+        }
+    }
     
     public static function getTargets($campaignId)
     {
@@ -283,6 +311,24 @@ class Campaign
             DELETE FROM campaign_targets 
             WHERE campaign_id = ? AND target_type = ? AND target_id = ?
         ", [$campaignId, $targetType, $targetId]);
+    }
+
+    public static function replaceTargets($campaignId, $targets)
+    {
+        DB::q("DELETE FROM campaign_targets WHERE campaign_id = ?", [$campaignId]);
+
+        foreach ($targets as $target) {
+            $type = $target['type'] ?? $target['target_type'] ?? '';
+            $targetId = $target['id'] ?? $target['target_id'] ?? '';
+            if (!in_array($type, ['contact', 'list'], true) || $targetId === '') {
+                continue;
+            }
+
+            DB::q("
+                INSERT INTO campaign_targets (campaign_id, target_type, target_id)
+                VALUES (?, ?, ?)
+            ", [$campaignId, $type, $targetId]);
+        }
     }
     
     public static function getRecipients($campaignId)
