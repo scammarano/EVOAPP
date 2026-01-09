@@ -2,39 +2,51 @@
 $title = 'Login - ' . APP_NAME;
 ?>
 
-<div class="auth-container" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--background);">
-    <div class="login-card" style="background: var(--surface); padding: 2rem; border-radius: 1rem; border: 1px solid var(--border); width: 100%; max-width: 400px;">
-        <div class="login-header" style="text-align: center; margin-bottom: 2rem;">
-            <h1 style="color: var(--primary-green); font-size: 2rem; margin-bottom: 0.5rem;"><?= $viewHelper->escape(APP_NAME) ?></h1>
-            <p style="color: var(--text-secondary);">Multi-instance WhatsApp Management</p>
-        </div>
-        
-        <?php if (isset($error)): ?>
-            <div class="alert alert-error">
-                <?= $viewHelper->escape($error) ?>
-            </div>
-        <?php endif; ?>
-        
-        <form method="post" action="<?= $viewHelper->url('auth/login') ?>" style="display: flex; flex-direction: column; gap: 1rem;">
-            <div class="form-group">
-                <label class="form-label" for="email">Email</label>
-                <input type="email" id="email" name="email" class="form-input" required 
-                       placeholder="admin@evoapp.com" value="admin@evoapp.com">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label" for="password">Password</label>
-                <input type="password" id="password" name="password" class="form-input" required 
-                       placeholder="Password">
-            </div>
-            
-            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
-                Sign In
-            </button>
-        </form>
-        
-        <div class="login-footer" style="margin-top: 2rem; text-align: center; color: var(--text-secondary); font-size: 0.875rem;">
-            <p>Default credentials: admin@evoapp.com / admin123</p>
+<div class="login-box">
+    <div class="login-logo">
+        <b><?= $viewHelper->escape(APP_NAME) ?></b>
+    </div>
+    <div class="card">
+        <div class="card-body login-card-body">
+            <p class="login-box-msg">Multi-instance WhatsApp Management</p>
+
+            <?php if (isset($error)): ?>
+                <div class="alert alert-danger">
+                    <?= $viewHelper->escape($error) ?>
+                </div>
+            <?php endif; ?>
+
+            <form method="post" action="<?= $viewHelper->url('auth/login') ?>">
+                <div class="input-group mb-3">
+                    <input type="email" id="email" name="email" class="form-control" required
+                           placeholder="admin@evoapp.com" value="admin@evoapp.com">
+                    <div class="input-group-append">
+                        <div class="input-group-text">
+                            <span class="fas fa-envelope"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-group mb-3">
+                    <input type="password" id="password" name="password" class="form-control" required
+                           placeholder="Password">
+                    <div class="input-group-append">
+                        <div class="input-group-text">
+                            <span class="fas fa-lock"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+                    </div>
+                </div>
+            </form>
+
+            <p class="mt-3 mb-0 text-center text-muted">
+                <small>Default credentials: admin@evoapp.com / admin123</small>
+            </p>
         </div>
     </div>
 </div>
