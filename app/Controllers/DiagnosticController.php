@@ -193,6 +193,9 @@ class DiagnosticController
                 $payloadCaption
             );
         } finally {
+            if (file_exists($mediaPath)) {
+                unlink($mediaPath);
+            }
             @unlink($mediaPath);
         }
     }
@@ -259,6 +262,7 @@ class DiagnosticController
         $postFields = [
             'number' => $number,
             'mediatype' => $mediaType,
+            'mimetype' => $mimeType,
             'media' => new \CURLFile($mediaPath, $mimeType, basename($mediaPath))
         ];
 
@@ -324,6 +328,15 @@ class DiagnosticController
         }
 
         $pngPath = $tempPath . '.png';
+        if (file_put_contents($pngPath, $binary) === false) {
+            unlink($tempPath);
+            if (file_exists($pngPath)) {
+                unlink($pngPath);
+            }
+            return null;
+        }
+
+        unlink($tempPath);
         if (@file_put_contents($pngPath, $binary) === false) {
             @unlink($tempPath);
             return null;
