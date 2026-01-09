@@ -113,7 +113,7 @@ class Instance
                 SELECT i.*, 
                        (SELECT COUNT(*) FROM chats WHERE instance_id = i.id) as chat_count,
                        (SELECT COUNT(*) FROM messages m JOIN chats c ON m.chat_id = c.id WHERE c.instance_id = i.id) as message_count,
-                       0 as total_unread
+                       COALESCE((SELECT SUM(unread_count) FROM chats WHERE instance_id = i.id), 0) as total_unread
                 FROM {$table} i
                 ORDER BY i.slug
             ";
@@ -123,6 +123,20 @@ class Instance
         } catch (\Exception $e) {
             // If tables don't exist, return empty stats
             return [];
+        }
+    }
+
+    public static function getStatsByInstance($instanceId)
+    {
+        try {
+            return DB::fetch("
+                SELECT
+                    (SELECT COUNT(*) FROM chats WHERE instance_id = ?) as chat_count,
+                    (SELECT COUNT(*) FROM messages m JOIN chats c ON m.chat_id = c.id WHERE c.instance_id = ?) as message_count,
+                    COALESCE((SELECT SUM(unread_count) FROM chats WHERE instance_id = ?), 0) as total_unread
+            ", [$instanceId, $instanceId, $instanceId]);
+        } catch (\Exception $e) {
+            return null;
         }
     }
     

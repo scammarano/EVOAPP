@@ -36,7 +36,7 @@ class InboxController
         if ($chatId) {
             $selectedChat = Chat::findById($chatId);
             if ($selectedChat && $selectedChat['instance_id'] == $instance['id']) {
-                $messages = Message::getMessagesByChat($chatId, 1, MESSAGES_PER_PAGE);
+                $messages = array_reverse(Message::getMessagesByChat($chatId, 1, MESSAGES_PER_PAGE));
                 
                 // Mark chat as read
                 $user = Auth::getCurrentUser();
@@ -119,6 +119,36 @@ class InboxController
             'success' => true,
             'messages' => array_reverse($messages), // Show oldest first
             'hasMore' => count($messages) === MESSAGES_PER_PAGE
+        ]);
+    }
+
+    public function statsAjax()
+    {
+        header('Content-Type: application/json');
+
+        $instanceSlug = $_GET['instance'] ?? '';
+
+        if (!$instanceSlug) {
+            echo json_encode(['error' => 'Instance required']);
+            return;
+        }
+
+        $instance = Instance::findBySlug($instanceSlug);
+        if (!$instance || !Auth::canViewInstance($instance['id'])) {
+            echo json_encode(['error' => 'Unauthorized']);
+            return;
+        }
+
+        $stats = Instance::getStatsByInstance($instance['id']);
+
+        if (!$stats) {
+            echo json_encode(['error' => 'Stats unavailable']);
+            return;
+        }
+
+        echo json_encode([
+            'success' => true,
+            'stats' => $stats
         ]);
     }
     
