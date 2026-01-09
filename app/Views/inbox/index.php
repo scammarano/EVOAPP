@@ -5,14 +5,11 @@ use App\Models\Instance;
 $title = 'Inbox - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
 
 // Obtener estadísticas de la instancia
-$instanceStats = Instance::getStats();
-$selectedInstanceStats = null;
-foreach ($instanceStats as $stat) {
-    if ($stat['id'] == $instance['id']) {
-        $selectedInstanceStats = $stat;
-        break;
-    }
-}
+$selectedInstanceStats = Instance::getStatsByInstance($instance['id']) ?? [
+    'chat_count' => 0,
+    'message_count' => 0,
+    'total_unread' => 0,
+];
 
 // Obtener perfil y estado actual de la instancia
 $instanceProfile = Instance::getInstanceProfile($instance['id']);
@@ -42,16 +39,16 @@ if ($instanceProfile) {
         <div class="instance-details">
             <h2 style="margin: 0; font-size: 1.2rem;"><?= $viewHelper->escape($instance['name'] ?? $instance['slug']) ?></h2>
             
-            <div class="instance-status" style="font-size: 0.9rem;">
+            <div class="instance-status">
                 <?php if ($instanceStatus): ?>
                     <div class="status-item">
-                        <span class="status-label">Estado:</span>
+                        <span class="status-label">Estado</span>
                         <span class="status-value"><?= $viewHelper->escape($instanceStatus['text'] ?? 'No status') ?></span>
                     </div>
                 <?php endif; ?>
                 
                 <div class="status-item">
-                    <span class="status-label">Conectado:</span>
+                    <span class="status-label">Conexión</span>
                     <span class="status-value <?= $instance['last_webhook_at'] ? 'online' : 'offline' ?>">
                         <?= $instance['last_webhook_at'] ? '🟢' : '🔴' ?>
                         <?= $instance['last_webhook_at'] ? 'Online' : 'Offline' ?>
@@ -59,7 +56,7 @@ if ($instanceProfile) {
                 </div>
                 
                 <div class="status-item">
-                    <span class="status-label">QR:</span>
+                    <span class="status-label">QR</span>
                     <button class="btn btn-small" onclick="regenerateQR()">
                         <span class="icon-refresh"></span>
                         Regenerar
@@ -75,7 +72,7 @@ if ($instanceProfile) {
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span style="font-size: 1.5rem;">💬</span>
                 <div>
-                    <div style="font-weight: bold;"><?= $selectedInstanceStats['chat_count'] ?? 0 ?></div>
+                    <div id="instance-chat-count" style="font-weight: bold;"><?= $selectedInstanceStats['chat_count'] ?? 0 ?></div>
                     <div style="font-size: 0.8rem; color: #666;">Chats</div>
                 </div>
             </div>
@@ -85,7 +82,7 @@ if ($instanceProfile) {
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span style="font-size: 1.5rem;">🔔</span>
                 <div>
-                    <div style="font-weight: bold; color: #dc3545;"><?= $selectedInstanceStats['total_unread'] ?? 0 ?></div>
+                    <div id="instance-unread-count" style="font-weight: bold; color: #dc3545;"><?= $selectedInstanceStats['total_unread'] ?? 0 ?></div>
                     <div style="font-size: 0.8rem; color: #666;">No leídos</div>
                 </div>
             </div>
@@ -95,7 +92,7 @@ if ($instanceProfile) {
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span style="font-size: 1.5rem;">📨</span>
                 <div>
-                    <div style="font-weight: bold;"><?= $selectedInstanceStats['message_count'] ?? 0 ?></div>
+                    <div id="instance-message-count" style="font-weight: bold;"><?= $selectedInstanceStats['message_count'] ?? 0 ?></div>
                     <div style="font-size: 0.8rem; color: #666;">Mensajes</div>
                 </div>
             </div>
@@ -130,12 +127,12 @@ if ($instanceProfile) {
 
 /* Instance Header */
 .inbox-instance-header {
-    padding: 1rem 0;
-    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+    margin-bottom: 0.75rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 1.5rem;
-    align-items: flex-start;
+    gap: 1rem;
+    align-items: center;
 }
 
 .instance-info {
@@ -154,28 +151,48 @@ if ($instanceProfile) {
 .instance-status {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem 1rem;
+    gap: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.4rem;
+    background: #f5f6f7;
+    border-radius: 999px;
+}
+
+.status-label {
+    font-weight: 600;
+    color: #495057;
 }
 
 .instance-stats {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 0.75rem;
     margin-bottom: 0;
 }
 
 .instance-stat-card {
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0.75rem;
     background: #f8f9fa;
     border-radius: 8px;
-    min-width: 140px;
+    min-width: 120px;
 }
 
 .navigation-buttons {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.5rem;
     margin-bottom: 0;
+}
+
+.navigation-buttons .btn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
 }
 
 /* Left Sidebar */
@@ -355,12 +372,35 @@ if ($instanceProfile) {
     margin-right: 0.75rem;
     overflow: hidden;
     flex-shrink: 0;
+    background: #f0f2f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chat-avatar.group {
+    background: #d1f2e1;
 }
 
 .chat-avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.chat-avatar .avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #495057;
+}
+
+.chat-avatar .avatar-placeholder.group {
+    background: #25d366;
+    color: white;
 }
 
 .chat-info {
@@ -904,11 +944,17 @@ if ($instanceProfile) {
         <!-- Chat List -->
         <div class="chat-list" data-page="1">
             <?php foreach ($chats as $chat): ?>
+                <?php
+                $chatDisplayName = $chat['title'] ?: ($chat['contact_name'] ?: $chat['remote_jid']);
+                if ($chat['is_group'] && empty($chatDisplayName)) {
+                    $chatDisplayName = 'Grupo sin nombre';
+                }
+                ?>
                 <div class="chat-item <?= ($selectedChat['id'] ?? null) == $chat['id'] ? 'active' : '' ?>" 
                      data-chat-id="<?= $viewHelper->escape($chat['id']) ?>" 
                      data-remote-jid="<?= $viewHelper->escape($chat['remote_jid']) ?>"
                      onclick="selectChat(<?= $chat['id'] ?>, '<?= $viewHelper->escape($chat['remote_jid']) ?>')">
-                    <div class="chat-avatar">
+                    <div class="chat-avatar <?= $chat['is_group'] ? 'group' : '' ?>">
                         <?php if (!empty($chat['avatar_url'])): ?>
                             <img src="<?= $viewHelper->escape($chat['avatar_url']) ?>" alt="Avatar">
                         <?php else: ?>
@@ -918,7 +964,7 @@ if ($instanceProfile) {
                         <?php endif; ?>
                     </div>
                     <div class="chat-info">
-                        <div class="chat-name"><?= $viewHelper->escape($chat['title'] ?: $chat['remote_jid']) ?></div>
+                        <div class="chat-name"><?= $viewHelper->escape($chatDisplayName ?: 'Sin nombre') ?></div>
                         <div class="chat-last-message">
                             <?php if (!empty($chat['from_me'])): ?>
                                 <span class="message-sent">✓</span>
@@ -948,6 +994,12 @@ if ($instanceProfile) {
     <!-- Right Content - Conversation -->
     <div class="conversation-area">
         <?php if ($selectedChat): ?>
+            <?php
+            $selectedChatDisplayName = $selectedChat['title'] ?: ($selectedChat['contact_name'] ?? $selectedChat['remote_jid']);
+            if ($selectedChat['is_group'] && empty($selectedChatDisplayName)) {
+                $selectedChatDisplayName = 'Grupo sin nombre';
+            }
+            ?>
             <!-- Conversation Header -->
             <div class="conversation-header">
                 <div class="chat-header-info">
@@ -961,7 +1013,7 @@ if ($instanceProfile) {
                         <?php endif; ?>
                     </div>
                     <div class="chat-header-details">
-                        <div class="chat-header-name"><?= $viewHelper->escape($selectedChat['title'] ?: $selectedChat['remote_jid']) ?></div>
+                        <div class="chat-header-name"><?= $viewHelper->escape($selectedChatDisplayName ?: 'Sin nombre') ?></div>
                         <div class="chat-header-status">
                             <?php if ($selectedChat['is_group']): ?>
                                 <span class="group-info">👥 <?= $selectedChat['participant_count'] ?? 0 ?> participants</span>
@@ -993,7 +1045,7 @@ if ($instanceProfile) {
                 
                 <?php if (!empty($messages)): ?>
                     <?php foreach ($messages as $message): ?>
-                        <div class="message <?= $message['from_me'] ? 'sent' : 'received' ?>" data-ts="<?= $viewHelper->escape($message['ts']) ?>">
+                        <div class="message <?= $message['from_me'] ? 'sent' : 'received' ?>" data-ts="<?= $viewHelper->escape($message['ts']) ?>" data-message-id="<?= $viewHelper->escape($message['message_id'] ?? '') ?>">
                             <div class="message-bubble">
                                 <?php if ($message['participant_jid'] && !$message['from_me'] && $selectedChat['is_group']): ?>
                                     <div class="message-author"><?= $viewHelper->escape($message['display_name']) ?></div>
@@ -1138,7 +1190,7 @@ function loadMoreMessages() {
     
     // Get current oldest message timestamp
     const messages = messagesContainer.querySelectorAll('.message');
-    const oldestMessage = messages[messages.length - 1];
+    const oldestMessage = messages[0];
     const oldestTs = oldestMessage ? oldestMessage.dataset.ts : null;
     
     if (oldestTs) {
@@ -1148,7 +1200,7 @@ function loadMoreMessages() {
                 if (data.success && data.messages) {
                     // Insert new messages at the beginning
                     const fragment = document.createDocumentFragment();
-                    data.messages.reverse().forEach(message => {
+                    data.messages.forEach(message => {
                         const messageEl = createMessageElement(message);
                         fragment.appendChild(messageEl);
                     });
@@ -1172,6 +1224,9 @@ function createMessageElement(message) {
     const div = document.createElement('div');
     div.className = `message ${message.from_me ? 'sent' : 'received'}`;
     div.dataset.ts = message.ts;
+    if (message.message_id) {
+        div.dataset.messageId = message.message_id;
+    }
     
     div.innerHTML = `
         <div class="message-bubble">
@@ -1246,6 +1301,202 @@ function renderMediaMessageHTML(message) {
             }
             return `<div class="message-text">📎 ${name}</div>`;
     }
+}
+
+function getChatDisplayName(chat) {
+    const name = (chat.title && chat.title.trim()) ||
+        (chat.contact_name && chat.contact_name.trim()) ||
+        chat.remote_jid;
+    if (!name && chat.is_group) {
+        return 'Grupo sin nombre';
+    }
+    return name || 'Sin nombre';
+}
+
+function formatChatTime(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+function buildChatElement(chat, isActive) {
+    const chatItem = document.createElement('div');
+    chatItem.className = `chat-item${isActive ? ' active' : ''}`;
+    chatItem.dataset.chatId = chat.id;
+    chatItem.dataset.remoteJid = chat.remote_jid;
+    chatItem.addEventListener('click', () => selectChat(chat.id, chat.remote_jid));
+
+    const avatar = document.createElement('div');
+    avatar.className = `chat-avatar${chat.is_group ? ' group' : ''}`;
+
+    if (chat.avatar_url) {
+        const img = document.createElement('img');
+        img.src = chat.avatar_url;
+        img.alt = 'Avatar';
+        avatar.appendChild(img);
+    } else {
+        const placeholder = document.createElement('div');
+        placeholder.className = `avatar-placeholder ${chat.is_group ? 'group' : 'person'}`;
+        placeholder.textContent = chat.is_group ? '👥' : '👤';
+        avatar.appendChild(placeholder);
+    }
+
+    const info = document.createElement('div');
+    info.className = 'chat-info';
+
+    const name = document.createElement('div');
+    name.className = 'chat-name';
+    name.textContent = getChatDisplayName(chat);
+
+    const lastMessage = document.createElement('div');
+    lastMessage.className = 'chat-last-message';
+    const messageText = document.createElement('span');
+    messageText.className = 'message-text';
+    messageText.textContent = chat.last_snippet || '';
+    lastMessage.appendChild(messageText);
+
+    info.appendChild(name);
+    info.appendChild(lastMessage);
+
+    const meta = document.createElement('div');
+    meta.className = 'chat-meta';
+
+    const time = document.createElement('div');
+    time.className = 'chat-time';
+    time.textContent = formatChatTime(chat.last_message_at);
+    meta.appendChild(time);
+
+    if (Number(chat.unread_count || 0) > 0 || chat.has_unread) {
+        const unread = document.createElement('div');
+        unread.className = 'chat-unread-badge';
+        unread.textContent = chat.unread_count || 1;
+        meta.appendChild(unread);
+    }
+
+    chatItem.appendChild(avatar);
+    chatItem.appendChild(info);
+    chatItem.appendChild(meta);
+
+    return chatItem;
+}
+
+function renderChatList(chats) {
+    const chatList = document.querySelector('.chat-list');
+    if (!chatList) return;
+
+    chatList.innerHTML = '';
+    chatList.dataset.page = '1';
+    if (!chats.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-chats';
+        empty.innerHTML = `
+            <div class="empty-icon">💬</div>
+            <h3>No conversations yet</h3>
+            <p>Start a conversation to see it here</p>
+        `;
+        chatList.appendChild(empty);
+        return;
+    }
+
+    const activeChatId = window.evoappInitialChat?.id ? String(window.evoappInitialChat.id) : null;
+    chats.forEach(chat => {
+        const chatElement = buildChatElement(chat, activeChatId && String(chat.id) === activeChatId);
+        chatList.appendChild(chatElement);
+    });
+}
+
+function refreshChatList() {
+    if (!window.evoappInitialInstance) return;
+
+    fetch(`index.php?r=inbox/chats&instance=${window.evoappInitialInstance}&page=1`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && Array.isArray(data.chats)) {
+                renderChatList(data.chats);
+            }
+        })
+        .catch(error => console.error('Error refreshing chat list:', error));
+}
+
+function refreshCurrentMessages() {
+    if (!window.evoappInitialChat || !window.evoappInitialChat.id) return;
+    const container = document.getElementById('messages-container');
+    if (!container) return;
+
+    fetch(`index.php?r=inbox/messages&instance=${window.evoappInitialInstance}&chat_id=${window.evoappInitialChat.id}&page=1`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success || !Array.isArray(data.messages)) return;
+
+            const existingIds = new Set(
+                Array.from(container.querySelectorAll('.message[data-message-id]'))
+                    .map(el => el.dataset.messageId)
+                    .filter(Boolean)
+            );
+            const existingTs = new Set(
+                Array.from(container.querySelectorAll('.message'))
+                    .map(el => el.dataset.ts)
+                    .filter(Boolean)
+            );
+
+            const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 80;
+            let added = false;
+
+            data.messages.forEach(message => {
+                if (message.message_id && existingIds.has(message.message_id)) {
+                    return;
+                }
+                if (!message.message_id && message.ts && existingTs.has(message.ts)) {
+                    return;
+                }
+
+                const messageEl = createMessageElement(message);
+                container.appendChild(messageEl);
+                added = true;
+            });
+
+            if (added && isNearBottom) {
+                scrollToBottom();
+            }
+        })
+        .catch(error => console.error('Error refreshing messages:', error));
+}
+
+function refreshInstanceStats() {
+    if (!window.evoappInitialInstance) return;
+
+    fetch(`index.php?r=inbox/stats&instance=${window.evoappInitialInstance}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success || !data.stats) return;
+            const chatCount = document.getElementById('instance-chat-count');
+            const unreadCount = document.getElementById('instance-unread-count');
+            const messageCount = document.getElementById('instance-message-count');
+
+            if (chatCount) chatCount.textContent = data.stats.chat_count ?? 0;
+            if (unreadCount) unreadCount.textContent = data.stats.total_unread ?? 0;
+            if (messageCount) messageCount.textContent = data.stats.message_count ?? 0;
+        })
+        .catch(error => console.error('Error refreshing stats:', error));
+}
+
+let inboxRefreshTimer = null;
+
+function startInboxPolling() {
+    if (!window.evoappInitialInstance) return;
+    if (inboxRefreshTimer) {
+        clearInterval(inboxRefreshTimer);
+    }
+    inboxRefreshTimer = setInterval(() => {
+        refreshChatList();
+        refreshCurrentMessages();
+        refreshInstanceStats();
+    }, 7000);
 }
 
 function resolvePreviewType(type, url = '') {
@@ -1327,6 +1578,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (messageInput) {
         messageInput.focus();
     }
+
+    startInboxPolling();
+    scrollToBottom();
 });
 
 // Handle keyboard shortcuts

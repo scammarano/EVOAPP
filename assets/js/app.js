@@ -197,6 +197,9 @@ class EVOAPP {
         const div = document.createElement('div');
         div.className = `message ${message.from_me ? 'sent' : 'received'}`;
         div.dataset.ts = message.ts;
+        if (message.message_id) {
+            div.dataset.messageId = message.message_id;
+        }
 
         let bubbleContent = '';
 
@@ -390,13 +393,20 @@ class EVOAPP {
         div.dataset.remoteJid = chat.remote_jid;
 
         const unreadBadge = chat.has_unread ? '<div class="chat-unread">!</div>' : '';
+        let displayName = chat.title || chat.contact_name || chat.remote_jid || '';
+        if (!displayName && chat.is_group) {
+            displayName = 'Grupo sin nombre';
+        }
+        if (!displayName) {
+            displayName = 'Sin nombre';
+        }
 
         div.innerHTML = `
             <div class="chat-avatar ${chat.is_group ? 'group' : ''}">
                 <span class="icon-${chat.is_group ? 'group' : 'person'}"></span>
             </div>
             <div class="chat-info">
-                <div class="chat-name">${this.escapeHtml(chat.title || chat.remote_jid)}</div>
+                <div class="chat-name">${this.escapeHtml(displayName)}</div>
                 <div class="chat-last-message">${this.escapeHtml(chat.last_snippet || '')}</div>
             </div>
             <div class="chat-meta">

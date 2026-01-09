@@ -14,6 +14,7 @@ class Chat
         }
 
         $hasProfilePic = DB::columnExists('contacts', 'profile_pic_url');
+        $hasName = DB::columnExists('contacts', 'name');
         $hasPhone = DB::columnExists('contacts', 'phone');
         $hasPhoneE164 = DB::columnExists('contacts', 'phone_e164');
 
@@ -27,9 +28,18 @@ class Chat
             $joinConditions[] = "REPLACE(ca.phone_e164, '+', '') = REPLACE(REPLACE(REPLACE(REPLACE(c.remote_jid, '@s.whatsapp.net', ''), '@c.us', ''), '@g.us', ''), '@lid', '')";
         }
 
-        if ($hasProfilePic && !empty($joinConditions)) {
+        $groupSelects = [];
+        $groupSelects[] = $hasProfilePic ? "MAX(ca.profile_pic_url) as avatar_url" : "NULL as avatar_url";
+        $groupSelects[] = $hasName ? "MAX(ca.name) as contact_name" : "NULL as contact_name";
+
+        $singleSelects = [];
+        $singleSelects[] = $hasProfilePic ? "ca.profile_pic_url as avatar_url" : "NULL as avatar_url";
+        $singleSelects[] = $hasName ? "ca.name as contact_name" : "NULL as contact_name";
+
+        if (!empty($joinConditions) && ($hasProfilePic || $hasName)) {
             self::$contactJoinConfig = [
-                'avatar_select' => "ca.profile_pic_url as avatar_url",
+                'group_selects' => implode(",\n                   ", $groupSelects),
+                'single_selects' => implode(",\n                   ", $singleSelects),
                 'join' => "LEFT JOIN contacts ca
                 ON ca.instance_id = c.instance_id
                AND (" . implode(' OR ', $joinConditions) . ")",
@@ -39,7 +49,8 @@ class Chat
         }
 
         self::$contactJoinConfig = [
-            'avatar_select' => "NULL as avatar_url",
+            'group_selects' => implode(",\n                   ", $groupSelects),
+            'single_selects' => implode(",\n                   ", $singleSelects),
             'join' => "",
         ];
 
@@ -52,7 +63,7 @@ class Chat
 
         return DB::fetch("
             SELECT c.*,
-                   {$contactJoin['avatar_select']}
+                   {$contactJoin['single_selects']}
             FROM chats c
             {$contactJoin['join']}
             WHERE c.id = ?
@@ -127,7 +138,7 @@ class Chat
         
         return DB::fetchAll("
             SELECT c.*, 
-                   {$contactJoin['avatar_select']},
+                   {$contactJoin['group_selects']},
                    COALESCE(cr.last_read_ts, '1970-01-01') as user_last_read_ts,
                    CASE 
                        WHEN m.ts > COALESCE(cr.last_read_ts, '1970-01-01') AND m.from_me = 0 THEN 1

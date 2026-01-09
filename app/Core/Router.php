@@ -44,6 +44,7 @@ class Router
         'inbox/sendEmoji' => ['InboxController', 'sendEmojiAjax'],
         'inbox/markRead' => ['InboxController', 'markRead'],
         'inbox/refreshStatus' => ['InboxController', 'refreshStatus'],
+        'inbox/stats' => ['InboxController', 'statsAjax'],
         
         // Contacts
         'contacts/index' => ['ContactsController', 'index'],
