@@ -5,18 +5,56 @@ use App\Core\DB;
 
 class Chat
 {
+    private static $contactJoinConfig = null;
+
+    private static function getContactJoinConfig()
+    {
+        if (self::$contactJoinConfig !== null) {
+            return self::$contactJoinConfig;
+        }
+
+        $hasProfilePic = DB::columnExists('contacts', 'profile_pic_url');
+        $hasPhone = DB::columnExists('contacts', 'phone');
+        $hasPhoneE164 = DB::columnExists('contacts', 'phone_e164');
+
+        $joinConditions = [];
+
+        if ($hasPhone) {
+            $joinConditions[] = "ca.phone = c.remote_jid";
+        }
+
+        if ($hasPhoneE164) {
+            $joinConditions[] = "REPLACE(ca.phone_e164, '+', '') = REPLACE(REPLACE(REPLACE(REPLACE(c.remote_jid, '@s.whatsapp.net', ''), '@c.us', ''), '@g.us', ''), '@lid', '')";
+        }
+
+        if ($hasProfilePic && !empty($joinConditions)) {
+            self::$contactJoinConfig = [
+                'avatar_select' => "ca.profile_pic_url as avatar_url",
+                'join' => "LEFT JOIN contacts ca
+                ON ca.instance_id = c.instance_id
+               AND (" . implode(' OR ', $joinConditions) . ")",
+            ];
+
+            return self::$contactJoinConfig;
+        }
+
+        self::$contactJoinConfig = [
+            'avatar_select' => "NULL as avatar_url",
+            'join' => "",
+        ];
+
+        return self::$contactJoinConfig;
+    }
+
     public static function findById($id)
     {
+        $contactJoin = self::getContactJoinConfig();
+
         return DB::fetch("
             SELECT c.*,
-                   ca.profile_pic_url as avatar_url
+                   {$contactJoin['avatar_select']}
             FROM chats c
-            LEFT JOIN contacts ca
-                ON ca.instance_id = c.instance_id
-               AND (
-                    ca.phone = c.remote_jid
-                    OR REPLACE(ca.phone_e164, '+', '') = REPLACE(REPLACE(REPLACE(REPLACE(c.remote_jid, '@s.whatsapp.net', ''), '@c.us', ''), '@g.us', ''), '@lid', '')
-               )
+            {$contactJoin['join']}
             WHERE c.id = ?
         ", [$id]);
     }
@@ -84,23 +122,19 @@ class Chat
     
     public static function getChatsByInstance($instanceId, $page = 1, $limit = 15)
     {
+        $contactJoin = self::getContactJoinConfig();
         $offset = ($page - 1) * $limit;
         
         return DB::fetchAll("
             SELECT c.*, 
-                   ca.profile_pic_url as avatar_url,
+                   {$contactJoin['avatar_select']},
                    COALESCE(cr.last_read_ts, '1970-01-01') as user_last_read_ts,
                    CASE 
                        WHEN m.ts > COALESCE(cr.last_read_ts, '1970-01-01') AND m.from_me = 0 THEN 1
                        ELSE 0
                    END as has_unread
             FROM chats c
-            LEFT JOIN contacts ca
-                ON ca.instance_id = c.instance_id
-               AND (
-                    ca.phone = c.remote_jid
-                    OR REPLACE(ca.phone_e164, '+', '') = REPLACE(REPLACE(REPLACE(REPLACE(c.remote_jid, '@s.whatsapp.net', ''), '@c.us', ''), '@g.us', ''), '@lid', '')
-               )
+            {$contactJoin['join']}
             LEFT JOIN messages m ON c.id = m.chat_id
             LEFT JOIN chat_reads cr ON c.id = cr.chat_id AND cr.user_id = ?
             WHERE c.instance_id = ?
