@@ -517,6 +517,10 @@ body {
     gap: 0.5rem;
 }
 
+.btn.is-loading {
+    opacity: 0.6;
+}
+
 .btn-primary {
     background: var(--primary-green);
     color: white;

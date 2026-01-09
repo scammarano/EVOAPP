@@ -57,10 +57,16 @@ if ($instanceProfile) {
                 
                 <div class="status-item">
                     <span class="status-label">QR</span>
-                    <button class="btn btn-small" onclick="regenerateQR()">
-                        <span class="icon-refresh"></span>
-                        Regenerar
-                    </button>
+                    <div class="status-actions">
+                        <button class="btn btn-small" onclick="regenerateQR()">
+                            <span class="icon-refresh"></span>
+                            Regenerar
+                        </button>
+                        <button class="btn btn-small" onclick="refreshInstanceData(this)" title="Refrescar instancia">
+                            <span class="icon-refresh"></span>
+                            Refrescar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -162,6 +168,12 @@ if ($instanceProfile) {
     padding: 0.15rem 0.4rem;
     background: #f5f6f7;
     border-radius: 999px;
+}
+
+.status-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
 }
 
 .status-label {
