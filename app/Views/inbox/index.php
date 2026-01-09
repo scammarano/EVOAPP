@@ -57,10 +57,16 @@ if ($instanceProfile) {
                 
                 <div class="status-item">
                     <span class="status-label">QR</span>
-                    <button class="btn btn-small" onclick="regenerateQR()">
-                        <span class="icon-refresh"></span>
-                        Regenerar
-                    </button>
+                    <div class="status-actions">
+                        <button class="btn btn-small" onclick="regenerateQR()">
+                            <span class="icon-refresh"></span>
+                            Regenerar
+                        </button>
+                        <button class="btn btn-small" onclick="refreshInstanceData(this)" title="Refrescar instancia">
+                            <span class="icon-refresh"></span>
+                            Refrescar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -162,6 +168,12 @@ if ($instanceProfile) {
     padding: 0.15rem 0.4rem;
     background: #f5f6f7;
     border-radius: 999px;
+}
+
+.status-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
 }
 
 .status-label {
@@ -1411,9 +1423,9 @@ function renderChatList(chats) {
 }
 
 function refreshChatList() {
-    if (!window.evoappInitialInstance) return;
+    if (!window.evoappInitialInstance) return Promise.resolve();
 
-    fetch(`index.php?r=inbox/chats&instance=${window.evoappInitialInstance}&page=1`)
+    return fetch(`index.php?r=inbox/chats&instance=${window.evoappInitialInstance}&page=1`)
         .then(response => response.json())
         .then(data => {
             if (data.success && Array.isArray(data.chats)) {
@@ -1424,11 +1436,11 @@ function refreshChatList() {
 }
 
 function refreshCurrentMessages() {
-    if (!window.evoappInitialChat || !window.evoappInitialChat.id) return;
+    if (!window.evoappInitialChat || !window.evoappInitialChat.id) return Promise.resolve();
     const container = document.getElementById('messages-container');
-    if (!container) return;
+    if (!container) return Promise.resolve();
 
-    fetch(`index.php?r=inbox/messages&instance=${window.evoappInitialInstance}&chat_id=${window.evoappInitialChat.id}&page=1`)
+    return fetch(`index.php?r=inbox/messages&instance=${window.evoappInitialInstance}&chat_id=${window.evoappInitialChat.id}&page=1`)
         .then(response => response.json())
         .then(data => {
             if (!data.success || !Array.isArray(data.messages)) return;
@@ -1468,9 +1480,9 @@ function refreshCurrentMessages() {
 }
 
 function refreshInstanceStats() {
-    if (!window.evoappInitialInstance) return;
+    if (!window.evoappInitialInstance) return Promise.resolve();
 
-    fetch(`index.php?r=inbox/stats&instance=${window.evoappInitialInstance}`)
+    return fetch(`index.php?r=inbox/stats&instance=${window.evoappInitialInstance}`)
         .then(response => response.json())
         .then(data => {
             if (!data.success || !data.stats) return;
@@ -1483,6 +1495,24 @@ function refreshInstanceStats() {
             if (messageCount) messageCount.textContent = data.stats.message_count ?? 0;
         })
         .catch(error => console.error('Error refreshing stats:', error));
+}
+
+function refreshInstanceData(triggerButton = null) {
+    if (triggerButton) {
+        triggerButton.classList.add('is-loading');
+        triggerButton.disabled = true;
+    }
+
+    return Promise.allSettled([
+        refreshChatList(),
+        refreshCurrentMessages(),
+        refreshInstanceStats()
+    ]).finally(() => {
+        if (triggerButton) {
+            triggerButton.classList.remove('is-loading');
+            triggerButton.disabled = false;
+        }
+    });
 }
 
 let inboxRefreshTimer = null;
