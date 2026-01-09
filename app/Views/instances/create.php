@@ -60,13 +60,19 @@ $title = 'Create Instance - ' . APP_NAME;
         </div>
 
         <div class="form-group">
-            <label class="form-label" for="webhook_token">Webhook Token</label>
+            <?php $useWebhookToken = !empty($data['webhook_token'] ?? ''); ?>
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" id="use_webhook_token" <?= $useWebhookToken ? 'checked' : '' ?>>
+                <span style="color: var(--text-primary);">Use Webhook Token</span>
+            </label>
+            <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">
+                Enable a token to validate incoming webhooks
+            </small>
+            <label class="form-label" for="webhook_token" style="margin-top: 0.75rem;">Webhook Token</label>
             <input type="text" id="webhook_token" name="webhook_token" class="form-input" 
                    placeholder="Optional webhook validation token"
-                   value="<?= $viewHelper->escape($data['webhook_token'] ?? '') ?>">
-            <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">
-                Token to validate incoming webhooks (optional)
-            </small>
+                   value="<?= $viewHelper->escape($data['webhook_token'] ?? '') ?>"
+                   <?= $useWebhookToken ? '' : 'disabled' ?>>
         </div>
 
         <div class="form-group">
@@ -126,6 +132,20 @@ $title = 'Create Instance - ' . APP_NAME;
 </div>
 
 <script>
+const webhookTokenToggle = document.getElementById('use_webhook_token');
+const webhookTokenInput = document.getElementById('webhook_token');
+
+function syncWebhookTokenState() {
+    const enabled = webhookTokenToggle.checked;
+    webhookTokenInput.disabled = !enabled;
+    if (!enabled) {
+        webhookTokenInput.value = '';
+    }
+}
+
+webhookTokenToggle.addEventListener('change', syncWebhookTokenState);
+syncWebhookTokenState();
+
 document.getElementById('instance-form').addEventListener('submit', function(e) {
     e.preventDefault();
     

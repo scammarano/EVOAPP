@@ -569,6 +569,23 @@ body {
     border-color: var(--primary-green);
 }
 
+.form-input:disabled,
+.form-select:disabled,
+.form-textarea:disabled {
+    background: var(--surface-light);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+}
+
+.create-instance {
+    color: var(--text-primary);
+}
+
+.create-instance .form-input::placeholder,
+.create-instance .form-textarea::placeholder {
+    color: var(--text-secondary);
+}
+
 .form-textarea {
     resize: vertical;
     min-height: 100px;
