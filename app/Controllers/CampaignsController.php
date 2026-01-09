@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\View;
+use App\Core\DB;
 use App\Models\Campaign;
 use App\Models\Instance;
 
@@ -137,11 +138,15 @@ class CampaignsController
             // Add messages
             if (isset($_POST['messages']) && is_array($_POST['messages'])) {
                 foreach ($_POST['messages'] as $index => $messageData) {
-                    if (!empty($messageData['text'])) {
+                    $text = trim($messageData['text'] ?? '');
+                    $mediaPath = trim($messageData['media_path'] ?? '');
+                    if ($text !== '' || $mediaPath !== '') {
                         $msgData = [
                             'campaign_id' => $campaignId,
                             'sort_order' => $index + 1,
-                            'text' => $messageData['text'],
+                            'text' => $text,
+                            'media_path' => $mediaPath !== '' ? $mediaPath : null,
+                            'media_type' => $messageData['media_type'] ?? null,
                             'caption' => $messageData['caption'] ?? ''
                         ];
 
@@ -300,7 +305,21 @@ class CampaignsController
         }
 
         try {
+            DB::beginTransaction();
             Campaign::update($id, $data);
+
+            $messages = $_POST['messages'] ?? [];
+            if (!is_array($messages)) {
+                $messages = [];
+            }
+            Campaign::replaceMessages($id, $messages);
+
+            $targets = $_POST['targets'] ?? [];
+            if (!is_array($targets)) {
+                $targets = [];
+            }
+            Campaign::replaceTargets($id, $targets);
+            DB::commit();
             
             // Log action
             Auth::logAction('update_campaign', 'campaign', $id, $campaign, $data);
@@ -315,6 +334,7 @@ class CampaignsController
             }
 
         } catch (\Exception $e) {
+            DB::rollback();
             $error = 'Error al actualizar campaña: ' . $e->getMessage();
             
             if ($this->isAjaxRequest()) {
