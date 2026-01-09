@@ -347,6 +347,10 @@ body {
     color: var(--text-primary);
 }
 
+.btn-icon.is-loading {
+    opacity: 0.6;
+}
+
 .btn-send {
     background: var(--primary-green);
     color: white;
@@ -701,6 +705,7 @@ body {
 .icon-menu::before { content: "☰"; }
 .icon-close::before { content: "✕"; }
 .icon-search::before { content: "🔍"; }
+.icon-refresh::before { content: "🔄"; }
 .icon-settings::before { content: "⚙️"; }
 .icon-dashboard::before { content: "📊"; }
 .icon-inbox::before { content: "💬"; }
