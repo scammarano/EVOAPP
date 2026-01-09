@@ -1036,6 +1036,9 @@ if ($instanceProfile) {
                     </div>
                 </div>
                 <div class="conversation-actions">
+                    <button class="btn-icon" onclick="refreshInstanceData(this)" title="Refrescar mensajes">
+                        <span class="icon-refresh"></span>
+                    </button>
                     <button class="btn-icon" onclick="searchInChat()" title="Search messages">
                         <span class="icon-search"></span>
                     </button>
