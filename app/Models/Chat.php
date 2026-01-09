@@ -7,7 +7,18 @@ class Chat
 {
     public static function findById($id)
     {
-        return DB::fetch("SELECT * FROM chats WHERE id = ?", [$id]);
+        return DB::fetch("
+            SELECT c.*,
+                   ca.profile_pic_url as avatar_url
+            FROM chats c
+            LEFT JOIN contacts ca
+                ON ca.instance_id = c.instance_id
+               AND (
+                    ca.phone = c.remote_jid
+                    OR REPLACE(ca.phone_e164, '+', '') = REPLACE(REPLACE(REPLACE(REPLACE(c.remote_jid, '@s.whatsapp.net', ''), '@c.us', ''), '@g.us', ''), '@lid', '')
+               )
+            WHERE c.id = ?
+        ", [$id]);
     }
     
     public static function findByRemoteJid($instanceId, $remoteJid)
@@ -77,12 +88,19 @@ class Chat
         
         return DB::fetchAll("
             SELECT c.*, 
+                   ca.profile_pic_url as avatar_url,
                    COALESCE(cr.last_read_ts, '1970-01-01') as user_last_read_ts,
                    CASE 
                        WHEN m.ts > COALESCE(cr.last_read_ts, '1970-01-01') AND m.from_me = 0 THEN 1
                        ELSE 0
                    END as has_unread
             FROM chats c
+            LEFT JOIN contacts ca
+                ON ca.instance_id = c.instance_id
+               AND (
+                    ca.phone = c.remote_jid
+                    OR REPLACE(ca.phone_e164, '+', '') = REPLACE(REPLACE(REPLACE(REPLACE(c.remote_jid, '@s.whatsapp.net', ''), '@c.us', ''), '@g.us', ''), '@lid', '')
+               )
             LEFT JOIN messages m ON c.id = m.chat_id
             LEFT JOIN chat_reads cr ON c.id = cr.chat_id AND cr.user_id = ?
             WHERE c.instance_id = ?
