@@ -196,6 +196,7 @@ class DiagnosticController
             if (file_exists($mediaPath)) {
                 unlink($mediaPath);
             }
+            @unlink($mediaPath);
         }
     }
     
@@ -336,6 +337,12 @@ class DiagnosticController
         }
 
         unlink($tempPath);
+        if (@file_put_contents($pngPath, $binary) === false) {
+            @unlink($tempPath);
+            return null;
+        }
+
+        @unlink($tempPath);
         return $pngPath;
     }
 }

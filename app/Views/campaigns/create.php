@@ -6,13 +6,13 @@ $errors = $errors ?? [];
 $data = $data ?? [];
 ?>
 
-<div class="campaign-create" style="padding: 2rem; max-width: 800px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h1 style="margin: 0; color: var(--text-primary);">New Campaign</h1>
+<div class="campaign-create" style="padding: 1.5rem; max-width: 760px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h1 style="margin: 0; color: var(--text-primary);">📢 New Campaign</h1>
         <a class="btn btn-secondary" href="<?= $viewHelper->url('campaigns/index') ?>&instance=<?= $viewHelper->escape($_GET['instance'] ?? '') ?>">Back</a>
     </div>
 
-    <form method="post" action="<?= $viewHelper->url('campaigns/store') ?>&instance=<?= $viewHelper->escape($_GET['instance'] ?? '') ?>" style="background: var(--surface); border-radius: 0.5rem; padding: 1.5rem;">
+    <form method="post" action="<?= $viewHelper->url('campaigns/store') ?>&instance=<?= $viewHelper->escape($_GET['instance'] ?? '') ?>" style="background: var(--surface); border-radius: 0.5rem; padding: 1.25rem;">
         <div class="form-group">
             <label class="form-label" for="name">Campaign Name</label>
             <input class="form-input" id="name" name="name" type="text" required value="<?= $viewHelper->escape($data['name'] ?? '') ?>">
@@ -97,7 +97,7 @@ $data = $data ?? [];
             </label>
         </div>
 
-        <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+        <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
             <button type="submit" class="btn btn-primary">Create Campaign</button>
             <a class="btn btn-secondary" href="<?= $viewHelper->url('campaigns/index') ?>&instance=<?= $viewHelper->escape($_GET['instance'] ?? '') ?>">Cancel</a>
         </div>
@@ -110,24 +110,25 @@ $data = $data ?? [];
 }
 
 .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 0.85rem;
 }
 
 .form-label {
     display: block;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.9rem;
 }
 
 .form-input {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.6rem 0.75rem;
     border: 1px solid var(--border);
     border-radius: 0.25rem;
     background: var(--background);
     color: var(--text-primary);
-    font-size: 1rem;
+    font-size: 0.9rem;
 }
 
 .form-input:focus {
@@ -137,11 +138,11 @@ $data = $data ?? [];
 }
 
 .btn {
-    padding: 0.75rem 1.5rem;
+    padding: 0.55rem 1.2rem;
     border: none;
     border-radius: 0.25rem;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.9rem;
     text-decoration: none;
     transition: all 0.2s ease;
 }
@@ -170,6 +171,8 @@ $data = $data ?? [];
     font-size: 0.875rem;
     margin-top: 0.25rem;
 }
+</style>
+
 <script>
 // Prevenir refresh automático
 document.addEventListener('DOMContentLoaded', function() {
@@ -190,6 +193,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             fetch('index.php?r=campaigns/store&instance=<?= $viewHelper->escape($_GET['instance'] ?? '') ?>', {
                 method: 'POST',
+                headers: {
+                    'Accept': 'application/json'
+                },
                 body: formData
             })
             .then(response => response.json())
@@ -217,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Redirigir después de 2 segundos
                     setTimeout(() => {
-                        window.location.href = 'index.php?r=campaigns/index&instance=<?= $viewHelper->escape($_GET['instance'] ?? '') ?>';
+                        window.location.href = 'index.php?r=campaigns/edit&id=' + encodeURIComponent(data.campaign_id) + '&instance=<?= $viewHelper->escape($_GET['instance'] ?? '') ?>';
                     }, 2000);
                     
                 } else {
@@ -249,55 +255,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Remover mensaje de éxito después de 5 segundos
                     setTimeout(() => {
-                        if (successDiv.parentNode) {
-                            successDiv.parentNode.removeChild(successDiv);
+                        if (errorDiv.parentNode) {
+                            errorDiv.parentNode.removeChild(errorDiv);
                         }
                     }, 5000);
                 }
             });
         });
-    }
-});
-
-// Función para mostrar calendario cuando se selecciona tipo de programación
-function showScheduleFields(scheduleType) {
-    // Ocultar todos los campos de programación
-    document.querySelectorAll('.schedule-fields').forEach(field => {
-        field.style.display = 'none';
-    });
-    
-    // Mostrar campos según el tipo seleccionado
-    const dateFields = document.getElementById('date-fields');
-    const timeFields = document.getElementById('time-fields');
-    
-    if (scheduleType === 'once') {
-        dateFields.style.display = 'block';
-        timeFields.style.display = 'block';
-    } else if (scheduleType === 'daily') {
-        document.getElementById('daily-fields').style.display = 'block';
-        dateFields.style.display = 'block';
-        timeFields.style.display = 'block';
-    } else if (scheduleType === 'weekly') {
-        document.getElementById('weekly-fields').style.display = 'block';
-        dateFields.style.display = 'block';
-        timeFields.style.display = 'block';
-    } else if (scheduleType === 'monthly') {
-        document.getElementById('monthly-fields').style.display = 'block';
-        dateFields.style.display = 'block';
-        timeFields.style.display = 'block';
-    }
-}
-
-// Escuchar cambios en el tipo de programación
-document.getElementById('schedule_type').addEventListener('change', function() {
-    showScheduleFields(this.value);
-});
-
-// Inicializar campos según el tipo seleccionado
-document.addEventListener('DOMContentLoaded', function() {
-    const scheduleType = document.getElementById('schedule_type').value;
-    if (scheduleType) {
-        showScheduleFields(scheduleType);
     }
 });
 </script>
