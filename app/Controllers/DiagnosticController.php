@@ -167,9 +167,34 @@ class DiagnosticController
     
     private function testMediaMessage($baseUrl, $slug, $apiKey, $number, $caption)
     {
-        // Simular envío de media (usamos un endpoint de texto con marcador)
-        $mediaText = "📎 [SIMULACIÓN DE ARCHIVO ADJUNTO]\n\nCaption: {$caption}\n\nTipo: image/jpeg\nNombre: test_image.jpg";
-        return $this->makeRequest($baseUrl, $slug, $apiKey, $number, $mediaText);
+        $trimmedCaption = trim((string)$caption);
+        $payloadCaption = $trimmedCaption === '' ? null : $trimmedCaption;
+
+        $mediaPath = $this->createDiagnosticMediaTempFile();
+        if (!$mediaPath) {
+            return [
+                'code' => -1,
+                'time' => 0,
+                'error' => 'No se pudo generar el archivo de prueba',
+                'response' => null,
+                'url' => null
+            ];
+        }
+
+        try {
+            return $this->makeMediaRequest(
+                $baseUrl,
+                $slug,
+                $apiKey,
+                $number,
+                $mediaPath,
+                'image',
+                'image/png',
+                $payloadCaption
+            );
+        } finally {
+            @unlink($mediaPath);
+        }
     }
     
     private function makeRequest($baseUrl, $slug, $apiKey, $number, $text)
@@ -226,5 +251,85 @@ class DiagnosticController
         }
         
         return $result;
+    }
+
+    private function makeMediaRequest($baseUrl, $slug, $apiKey, $number, $mediaPath, $mediaType, $mimeType, $caption = null)
+    {
+        $url = $baseUrl . "/message/sendMedia/" . $slug;
+        $postFields = [
+            'number' => $number,
+            'mediatype' => $mediaType,
+            'media' => new \CURLFile($mediaPath, $mimeType, basename($mediaPath))
+        ];
+
+        if ($caption !== null && $caption !== '') {
+            $postFields['caption'] = $caption;
+        }
+
+        error_log("Diagnostic: Making media request to URL: $url");
+        error_log("Diagnostic: Media path: $mediaPath");
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'apikey: ' . $apiKey
+        ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        $time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
+        curl_close($ch);
+
+        error_log("Diagnostic: Media response code: $httpCode, Error: $error, Time: $time");
+
+        $result = [
+            'code' => $httpCode,
+            'time' => round($time * 1000),
+            'error' => $error,
+            'response' => null,
+            'url' => $url
+        ];
+
+        if ($error) {
+            $result['error'] = $error;
+        } else {
+            try {
+                $result['response'] = json_decode($response, true);
+            } catch (\Exception $e) {
+                $result['response'] = $response;
+            }
+        }
+
+        return $result;
+    }
+
+    private function createDiagnosticMediaTempFile()
+    {
+        $base64Png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
+        $binary = base64_decode($base64Png, true);
+        if ($binary === false) {
+            return null;
+        }
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'diag_media_');
+        if ($tempPath === false) {
+            return null;
+        }
+
+        $pngPath = $tempPath . '.png';
+        if (@file_put_contents($pngPath, $binary) === false) {
+            @unlink($tempPath);
+            return null;
+        }
+
+        @unlink($tempPath);
+        return $pngPath;
     }
 }
