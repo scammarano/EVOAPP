@@ -140,6 +140,8 @@ $errors = $errors ?? [];
 </div>
 
 <script>
+window.evoappDisablePolling = true;
+
 const webhookTokenToggle = document.getElementById('use_webhook_token');
 const webhookTokenInput = document.getElementById('webhook_token');
 
