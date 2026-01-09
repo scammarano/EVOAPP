@@ -72,4 +72,17 @@ class DB
     {
         return htmlspecialchars($string, ENT_QUOTES, 'UTF-8');
     }
+
+    public static function columnExists($table, $column)
+    {
+        $result = self::fetch("
+            SELECT COUNT(*) as count
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = ?
+              AND COLUMN_NAME = ?
+        ", [$table, $column]);
+
+        return (int)($result['count'] ?? 0) > 0;
+    }
 }
