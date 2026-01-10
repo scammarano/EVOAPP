@@ -86,9 +86,24 @@ class WebhookController
         }
         
         // Store webhook event
+        $eventType = $payload['event'] ?? 'unknown';
+        
+        // Mapear eventos desconocidos a tipos conocidos
+        $knownEvents = [
+            'contacts.update' => 'contact_update',
+            'chats.upsert' => 'chat_update',
+            'chats.update' => 'chat_update',
+            'presence.update' => 'presence_update',
+            'messages.upsert' => 'message_received',
+            'messages.update' => 'message_update',
+            'statusMessage' => 'status_update'
+        ];
+        
+        $eventType = $knownEvents[$eventType] ?? $eventType;
+        
         $eventData = [
             'instance_id' => $instance['id'],
-            'event_type' => $payload['event'] ?? 'unknown',
+            'event_type' => $eventType,
             'remote_jid' => $payload['data']['key']['remoteJid'] ?? null,
             'message_id' => $payload['data']['key']['id'] ?? null,
             'participant_jid' => $payload['data']['participant'] ?? null,
@@ -98,7 +113,12 @@ class WebhookController
         $eventId = WebhookEvent::create($eventData);
         
         // Update instance webhook timestamp
-        Instance::updateWebhookTimestamp($instance['id']);
+        $timestampUpdated = Instance::updateWebhookTimestamp($instance['id']);
+        
+        // Si no se pudo actualizar el timestamp, registrar en log
+        if (!$timestampUpdated) {
+            error_log("Failed to update webhook_timestamp for instance {$instance['id']} - column may not exist");
+        }
         
         // Forward webhook if configured
         if ($instance['forward_webhook_enabled'] && $instance['forward_webhook_url']) {
@@ -168,7 +188,7 @@ class WebhookController
             'instance_id' => $event['instance_id'],
             'remote_jid' => $remoteJid,
             'is_group' => $isGroup,
-            'last_message_at' => date('Y-m-d H:i:s', $data['messageTimestamp'] / 1000)
+            'last_message_at' => date('Y-m-d H:i:s', intval($data['messageTimestamp'] / 1000))
         ];
         
         // Set chat title
@@ -189,7 +209,7 @@ class WebhookController
             'chat_id' => $chatId,
             'message_id' => $messageId,
             'from_me' => $fromMe,
-            'ts' => date('Y-m-d H:i:s', $data['messageTimestamp'] / 1000),
+            'ts' => date('Y-m-d H:i:s', intval($data['messageTimestamp'] / 1000)),
             'msg_type' => $this->getMessageType($message),
             'body_text' => $this->getMessageBody($message),
             'participant_jid' => $participant,

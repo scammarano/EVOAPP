@@ -100,6 +100,16 @@ class Router
         'diagnostic/testInstance' => ['DiagnosticController', 'testInstance'],
         'diagnostic/testAll' => ['DiagnosticController', 'testAll'],
         
+        // System Logs
+        'logs/index' => ['LogsController', 'index'],
+        'logs/getPhpErrors' => ['LogsController', 'getPhpErrors'],
+        'logs/getWebhookLogs' => ['LogsController', 'getWebhookLogs'],
+        'logs/getSystemInfo' => ['LogsController', 'getSystemInfo'],
+        'logs/clearPhpErrors' => ['LogsController', 'clearPhpErrors'],
+        'logs/retryFailedWebhooks' => ['LogsController', 'retryFailedWebhooks'],
+        'logs/exportPhpErrors' => ['LogsController', 'exportPhpErrors'],
+        'logs/exportDatabaseErrors' => ['LogsController', 'exportDatabaseErrors'],
+        
         // Webhooks
         'webhook/evolution' => ['WebhookController', 'evolution'],
         'webhook/events' => ['WebhookController', 'events'],

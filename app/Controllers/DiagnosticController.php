@@ -3,10 +3,15 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\View;
+use App\Core\MessageSender;
 use App\Models\Instance;
 
 class DiagnosticController
 {
+    // VERSIÓN DEL CONTROLADOR
+    const CONTROLLER_VERSION = '2.0';
+    const LAST_MODIFIED = '2025-01-10 16:30:00';
+    const FEATURES = ['MessageSender', 'Enhanced Logging', 'Send Mode Selector'];
     public function index()
     {
         if (!Auth::isLoggedIn()) {
@@ -17,12 +22,143 @@ class DiagnosticController
         // Obtener todas las instancias
         $instances = Instance::getAll(false); // false para obtener todas, no solo activas
         
+        // Pasar información de versión a la vista
         View::set('instances', $instances);
         View::set('user', Auth::getCurrentUser());
+        View::set('controller_version', self::CONTROLLER_VERSION);
+        View::set('controller_modified', self::LAST_MODIFIED);
+        View::set('controller_features', self::FEATURES);
         View::render('diagnostic/index');
     }
     
     public function testInstance()
+    {
+        // Forzar output de errores
+        error_reporting(E_ALL);
+        ini_set('display_errors', 1);
+        
+        header('Content-Type: application/json');
+        
+        error_log("Diagnostic: testInstance() called");
+        
+        if (!Auth::isLoggedIn()) {
+            error_log("Diagnostic: User not logged in");
+            echo json_encode(['error' => 'Unauthorized']);
+            return;
+        }
+        
+        error_log("Diagnostic: User authenticated");
+        
+        $instanceId = (int)($_POST['instance_id'] ?? 0);
+        $testNumber = $_POST['test_number'] ?? '+10000000000';
+        $testText = $_POST['test_text'] ?? 'Mensaje de prueba - EVOAPP Diagnostic';
+        $testType = $_POST['test_type'] ?? 'single'; // single, burst, media
+        $testCaption = $_POST['test_caption'] ?? '';
+        $sendMode = $_POST['send_mode'] ?? 'media_only';
+        
+        if (!$instanceId) {
+            error_log("Diagnostic: No instance ID provided");
+            echo json_encode(['error' => 'Instance ID required']);
+            return;
+        }
+        
+        error_log("Diagnostic: Instance ID: $instanceId");
+        error_log("Diagnostic: Test Number: $testNumber");
+        error_log("Diagnostic: Test Type: $testType");
+        
+        // Validar y formatear número
+        try {
+            $testNumber = MessageSender::formatPhone($testNumber);
+            error_log("Diagnostic: Formatted number: $testNumber");
+        } catch (Exception $e) {
+            error_log("Diagnostic: Error formatting number: " . $e->getMessage());
+            echo json_encode(['error' => 'Error formatting number: ' . $e->getMessage()]);
+            return;
+        }
+        
+        try {
+            if (!MessageSender::validatePhone($testNumber)) {
+                error_log("Diagnostic: Invalid phone number format");
+                echo json_encode(['error' => 'Invalid phone number format']);
+                return;
+            }
+        } catch (Exception $e) {
+            error_log("Diagnostic: Error validating number: " . $e->getMessage());
+            echo json_encode(['error' => 'Error validating number: ' . $e->getMessage()]);
+            return;
+        }
+        
+        try {
+            error_log("Diagnostic: Creating MessageSender for instance $instanceId");
+            $sender = MessageSender::forInstance($instanceId);
+            error_log("Diagnostic: MessageSender created successfully");
+            $result = [];
+            
+            switch ($testType) {
+                case 'single':
+                    error_log("Diagnostic: Sending single message to $testNumber");
+                    $result = $sender->sendText($testNumber, $testText);
+                    error_log("Diagnostic: Single message result: " . json_encode($result));
+                    break;
+                    
+                case 'burst':
+                    $result = $sender->sendBurst($testNumber, $testText, 3);
+                    break;
+                    
+                case 'media':
+                    if (isset($_FILES['test_media']) && $_FILES['test_media']['error'] === UPLOAD_ERR_OK) {
+                        $result = $sender->sendMediaFromFile(
+                            $testNumber,
+                            $_FILES['test_media'],
+                            $testCaption,
+                            $testText,
+                            $sendMode
+                        );
+                    } else {
+                        echo json_encode(['error' => 'Media file required for media test']);
+                        return;
+                    }
+                    break;
+                    
+                default:
+                    echo json_encode(['error' => 'Invalid test type']);
+                    return;
+            }
+            
+            // Formatear respuesta para compatibilidad con UI existente
+            echo json_encode([
+                'success' => $result['success'],
+                'result' => [
+                    'instance_slug' => $sender->instance['slug'],
+                    'baseUrl' => $sender->instance['base_url'],
+                    'test_type' => $testType,
+                    'send_mode' => $sendMode,
+                    'number' => $testNumber,
+                    'message' => $result['message'] ?? '',
+                    'type' => $result['type'] ?? '',
+                    'results' => $result['results'] ?? [],
+                    'error' => $result['error'] ?? null
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            error_log("Diagnostic: EXCEPTION: " . $e->getMessage());
+            error_log("Diagnostic: EXCEPTION TRACE: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        } catch (Error $e) {
+            error_log("Diagnostic: FATAL ERROR: " . $e->getMessage());
+            error_log("Diagnostic: FATAL ERROR TRACE: " . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false,
+                'error' => 'Fatal error: ' . $e->getMessage()
+            ]);
+        }
+    }
+    
+    public function testAll()
     {
         header('Content-Type: application/json');
         
@@ -31,38 +167,83 @@ class DiagnosticController
             return;
         }
         
-        $instanceId = (int)($_POST['instance_id'] ?? 0);
+        $instanceIds = $_POST['instance_ids'] ?? '';
         $testNumber = $_POST['test_number'] ?? '+10000000000';
         $testText = $_POST['test_text'] ?? 'Mensaje de prueba - EVOAPP Diagnostic';
-        $testType = $_POST['test_type'] ?? 'single'; // single, burst, media
+        $testType = $_POST['test_type'] ?? 'single';
         $testCaption = $_POST['test_caption'] ?? '';
+        $sendMode = $_POST['send_mode'] ?? 'media_only';
         
-        if (!$instanceId) {
-            echo json_encode(['error' => 'Instance ID required']);
+        if (empty($instanceIds)) {
+            echo json_encode(['error' => 'Instance IDs required']);
             return;
         }
         
-        $instance = Instance::findById($instanceId);
-        if (!$instance) {
-            echo json_encode(['error' => 'Instance not found']);
-            return;
-        }
+        $instanceIdArray = explode(',', $instanceIds);
+        $results = [];
         
-        $mediaUpload = null;
-        try {
-            $mediaUpload = $this->prepareUploadedMedia('test_media');
-            $result = $this->testInstanceConnection($instance, $testNumber, $testText, $testType, $testCaption, $mediaUpload);
-            echo json_encode(['success' => true, 'result' => $result]);
-        } catch (\Exception $e) {
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-        } finally {
-            if (!empty($mediaUpload['cleanup']) && !empty($mediaUpload['path']) && file_exists($mediaUpload['path'])) {
-                @unlink($mediaUpload['path']);
+        foreach ($instanceIdArray as $instanceId) {
+            $instanceId = (int)$instanceId;
+            
+            try {
+                $sender = MessageSender::forInstance($instanceId);
+                $result = [];
+                
+                switch ($testType) {
+                    case 'single':
+                        $result = $sender->sendText($testNumber, $testText);
+                        break;
+                        
+                    case 'burst':
+                        $result = $sender->sendBurst($testNumber, $testText, 3);
+                        break;
+                        
+                    case 'media':
+                        if (isset($_FILES['test_media']) && $_FILES['test_media']['error'] === UPLOAD_ERR_OK) {
+                            $result = $sender->sendMediaFromFile(
+                                $testNumber,
+                                $_FILES['test_media'],
+                                $testCaption,
+                                $testText,
+                                $sendMode
+                            );
+                        } else {
+                            $result = ['success' => false, 'error' => 'Media file required'];
+                        }
+                        break;
+                        
+                    default:
+                        $result = ['success' => false, 'error' => 'Invalid test type'];
+                }
+                
+                $results[] = [
+                    'instance' => [
+                        'id' => $instanceId,
+                        'slug' => $sender->instance['slug']
+                    ],
+                    'success' => $result['success'],
+                    'result' => $result
+                ];
+                
+            } catch (\Exception $e) {
+                $results[] = [
+                    'instance' => [
+                        'id' => $instanceId,
+                        'slug' => 'Unknown'
+                    ],
+                    'success' => false,
+                    'result' => ['error' => $e->getMessage()]
+                ];
             }
         }
+        
+        echo json_encode([
+            'success' => true,
+            'results' => $results
+        ]);
     }
     
-    public function testAll()
+    public function testAllInstances()
     {
         header('Content-Type: application/json');
         

@@ -1,65 +1,100 @@
 <?php
 namespace App\Models;
 
-use App\Core\DB;
+use App\Core\Database;
 
 class Contact
 {
-    public static function findById($id)
+    private $db;
+    
+    public function __construct()
     {
-        return DB::fetch("SELECT * FROM contacts WHERE id = ?", [$id]);
+        $this->db = Database::getInstance();
     }
     
-    public static function findByPhone($instanceId, $phone)
+    public function getAll($limit = 20, $offset = 0, $search = '')
     {
-        return DB::fetch("SELECT * FROM contacts WHERE instance_id = ? AND phone_e164 = ?", [$instanceId, $phone]);
+        $sql = "SELECT * FROM contacts";
+        $params = [];
+        
+        if (!empty($search)) {
+            $sql .= " WHERE name LIKE ? OR phone LIKE ? OR email LIKE ? OR company LIKE ?";
+            $searchParam = "%$search%";
+            $params = [$searchParam, $searchParam, $searchParam, $searchParam];
+        }
+        
+        $sql .= " ORDER BY name ASC LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+        
+        return $this->db->fetchAll($sql, $params);
     }
     
-    public static function createOrUpdate($data)
+    public function getById($id)
     {
-        $existing = self::findByPhone($data['instance_id'], $data['phone_e164']);
+        $sql = "SELECT * FROM contacts WHERE id = ?";
+        return $this->db->fetch($sql, [$id]);
+    }
+    
+    public function create($data)
+    {
+        $sql = "INSERT INTO contacts (name, phone, phone_e164, email, company, address, notes, source, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+        
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            $data['name'] ?? null,
+            $data['phone'] ?? '',
+            $data['phone_e164'] ?? $data['phone'],
+            $data['email'] ?? null,
+            $data['company'] ?? null,
+            $data['address'] ?? null,
+            $data['notes'] ?? null,
+            $data['source'] ?? 'manual'
+        ]);
+    }
+    
+    public function createIfNotExists($data)
+    {
+        // Verificar si ya existe
+        $existing = $this->getByPhone($data['phone']);
         
         if ($existing) {
-            // Update existing contact
-            $fields = [];
-            $params = [];
-            
-            $updatableFields = ['name', 'company', 'email', 'birthday', 'notes'];
-            
-            foreach ($updatableFields as $field) {
-                if (isset($data[$field])) {
-                    $fields[] = "$field = ?";
-                    $params[] = $data[$field];
-                }
-            }
-            
-            if (!empty($fields)) {
-                $fields[] = "updated_at = NOW()";
-                $params[] = $existing['id'];
-                
-                DB::q("UPDATE contacts SET " . implode(', ', $fields) . " WHERE id = ?", $params);
-            }
-            
-            return $existing['id'];
-        } else {
-            // Create new contact
-            DB::q("
-                INSERT INTO contacts (instance_id, phone_e164, name, company, email, birthday, notes, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-            ", [
-                $data['instance_id'],
-                $data['phone_e164'],
-                $data['name'] ?? null,
-                $data['company'] ?? null,
-                $data['email'] ?? null,
-                $data['birthday'] ?? null,
-                $data['notes'] ?? null
-            ]);
-            
-            return DB::lastInsertId();
+            return false; // Ya existe
         }
+        
+        return $this->create($data);
     }
     
+    public function getByPhone($phone)
+    {
+        $sql = "SELECT * FROM contacts WHERE phone = ? OR phone_e164 = ?";
+        return $this->db->fetch($sql, [$phone, $phone]);
+    }
+    
+    public function update($id, $data)
+    {
+        $sql = "UPDATE contacts SET name = ?, email = ?, company = ?, address = ?, notes = ?, updated_at = NOW() WHERE id = ?";
+        
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            $data['name'] ?? null,
+            $data['email'] ?? null,
+            $data['company'] ?? null,
+            $data['address'] ?? null,
+            $data['notes'] ?? null,
+            $id
+        ]);
+    }
+    
+    public function delete($id)
+    {
+        $sql = "DELETE FROM contacts WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([$id]);
+    }
+    
+        
     public static function getAll($instanceId, $page = 1, $limit = 20, $search = null)
     {
         $offset = ($page - 1) * $limit;

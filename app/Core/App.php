@@ -57,35 +57,25 @@ class App
             echo "<div style='background: #f8d7da; color: #721c24; padding: 10px; margin: 10px; border: 1px solid #f5c6cb; border-radius: 4px;'>";
             echo "<strong>Error:</strong> $message<br>";
             echo "<strong>File:</strong> $file:$line<br>";
+            echo "<strong>Line:</strong> $line<br>";
             echo "</div>";
-        } else {
-            error_log($error);
-            $this->showErrorPage(500, "Internal Server Error");
         }
+        
+        error_log($error);
     }
     
     public function handleException($exception)
     {
-        $error = "Uncaught exception: " . $exception->getMessage() . " in " . $exception->getFile() . ":" . $exception->getLine();
+        $error = "Exception: " . $exception->getMessage() . " in " . $exception->getFile() . " on line " . $exception->getLine();
         
         if (DEBUG) {
             echo "<div style='background: #f8d7da; color: #721c24; padding: 10px; margin: 10px; border: 1px solid #f5c6cb; border-radius: 4px;'>";
             echo "<strong>Exception:</strong> " . $exception->getMessage() . "<br>";
             echo "<strong>File:</strong> " . $exception->getFile() . ":" . $exception->getLine() . "<br>";
-            echo "<pre>" . $exception->getTraceAsString() . "</pre>";
+            echo "<strong>Trace:</strong> <pre>" . $exception->getTraceAsString() . "</pre>";
             echo "</div>";
-        } else {
-            error_log($error);
-            $this->showErrorPage(500, "Internal Server Error");
         }
-    }
-    
-    private function showErrorPage($code, $message)
-    {
-        http_response_code($code);
-        echo "<!DOCTYPE html><html><head><title>Error $code</title></head><body>";
-        echo "<h1>Error $code</h1><p>$message</p>";
-        echo "</body></html>";
-        exit;
+        
+        error_log($error);
     }
 }

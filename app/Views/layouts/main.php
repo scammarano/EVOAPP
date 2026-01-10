@@ -106,6 +106,12 @@ $currentInstanceSlug = $instance['slug'] ?? ($_GET['instance'] ?? '');
                                         <p>Debug</p>
                                     </a>
                                 </li>
+                                <li class="nav-item">
+                                    <a href="<?= $viewHelper->url('logs/index') ?>" class="nav-link">
+                                        <i class="nav-icon fas fa-file-alt"></i>
+                                        <p>System Logs</p>
+                                    </a>
+                                </li>
                             <?php endif; ?>
                         </ul>
                     </nav>

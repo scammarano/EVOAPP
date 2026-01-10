@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\View;
+use App\Core\MessageSender;
 use App\Models\Instance;
 use App\Models\Chat;
 use App\Models\Message;
@@ -165,8 +166,8 @@ class InboxController
             return;
         }
         
-        if (!Auth::hasPermission('inbox.send_text')) {
-            echo json_encode(['error' => 'No permission to send messages']);
+        if (!Auth::isLoggedIn()) {
+            echo json_encode(['error' => 'Unauthorized']);
             return;
         }
         
@@ -183,8 +184,9 @@ class InboxController
         }
         
         try {
-            $client = Instance::evoClient($instance);
-            $result = $client->sendText($instanceSlug, $chat['remote_jid'], $text);
+            // Usar MessageSender centralizado
+            $sender = MessageSender::forInstance($instance['id']);
+            $result = $sender->sendText($chat['remote_jid'], $text);
             
             // Log action
             Auth::logAction('send_message', 'message', null, [
@@ -194,9 +196,9 @@ class InboxController
             ]);
             
             echo json_encode([
-                'success' => true,
-                'message' => 'Message sent successfully',
-                'result' => $result
+                'success' => $result['success'],
+                'message' => $result['success'] ? 'Message sent successfully' : $result['error'],
+                'result' => $result['result'] ?? null
             ]);
             
         } catch (\Exception $e) {
@@ -219,6 +221,8 @@ class InboxController
         $instanceSlug = $_POST['instance'] ?? '';
         $chatId = (int)($_POST['chat_id'] ?? 0);
         $caption = $_POST['caption'] ?? '';
+        $text = $_POST['text'] ?? '';
+        $sendMode = $_POST['send_mode'] ?? 'media_only'; // media_only, media_with_text
         
         if (!$instanceSlug || !$chatId || !isset($_FILES['media'])) {
             echo json_encode(['error' => 'Missing required fields']);
@@ -237,56 +241,36 @@ class InboxController
             return;
         }
         
-        $file = $_FILES['media'];
-        
-        // Validate file
-        if ($file['error'] !== UPLOAD_ERR_OK) {
-            echo json_encode(['error' => 'File upload error: ' . $file['error']]);
-            return;
-        }
-        
-        // Check file size (10MB limit)
-        $maxSize = 10 * 1024 * 1024; // 10MB
-        if ($file['size'] > $maxSize) {
-            echo json_encode(['error' => 'File too large. Maximum size is 10MB']);
-            return;
-        }
-        
-        // Determine media type
-        $mediaType = $this->getMediaType($file['type']);
-        if (!$mediaType) {
-            echo json_encode(['error' => 'Unsupported file type']);
-            return;
-        }
-        
         try {
-            $client = Instance::evoClient($instance);
-            $result = $client->sendMedia(
-                $instanceSlug,
+            // Usar MessageSender centralizado
+            $sender = MessageSender::forInstance($instance['id']);
+            $result = $sender->sendMediaFromFile(
                 $chat['remote_jid'],
-                $file['tmp_name'],
-                $mediaType,
-                $file['type'],
-                $caption
+                $_FILES['media'],
+                $caption,
+                $text,
+                $sendMode
             );
             
             // Log action
             Auth::logAction('send_media', 'message', null, [
                 'chat_id' => $chatId,
-                'file' => $file['name'],
-                'type' => $mediaType,
+                'file' => $_FILES['media']['name'],
                 'caption' => $caption,
+                'text' => $text,
+                'send_mode' => $sendMode,
                 'result' => $result
             ]);
             
             echo json_encode([
-                'success' => true,
-                'message' => 'Media sent successfully',
-                'result' => $result,
+                'success' => $result['success'],
+                'message' => $result['success'] ? $result['message'] : $result['error'],
+                'send_mode' => $sendMode,
+                'results' => $result['results'] ?? [],
                 'file_info' => [
-                    'name' => $file['name'],
-                    'size' => $file['size'],
-                    'type' => $mediaType
+                    'name' => $_FILES['media']['name'],
+                    'size' => $_FILES['media']['size'],
+                    'type' => $result['media_info']['type'] ?? 'unknown'
                 ]
             ]);
             
@@ -301,6 +285,11 @@ class InboxController
     public function sendEmojiAjax()
     {
         header('Content-Type: application/json');
+        
+        if (!Auth::isLoggedIn()) {
+            echo json_encode(['error' => 'Unauthorized']);
+            return;
+        }
         
         $instanceSlug = $_POST['instance'] ?? '';
         $chatId = (int)($_POST['chat_id'] ?? 0);

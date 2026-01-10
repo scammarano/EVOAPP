@@ -24,6 +24,14 @@ class Instance
         return DB::fetch("SELECT * FROM {$table} WHERE id = ?", [$id]);
     }
     
+    /**
+     * Alias para findById para compatibilidad
+     */
+    public static function getById($id)
+    {
+        return self::findById($id);
+    }
+    
     public static function getAll($activeOnly = true)
     {
         $table = self::tableName();
@@ -646,5 +654,20 @@ class Instance
     {
         $table = 'instance_status_scheduled';
         DB::q("DELETE FROM {$table} WHERE id = ?", [$statusId]);
+    }
+    
+    public static function updateWebhookTimestamp($instanceId)
+    {
+        $table = self::tableName();
+        $sql = "UPDATE {$table} SET webhook_timestamp = NOW() WHERE id = ?";
+        
+        try {
+            DB::q($sql, [$instanceId]);
+            return true;
+        } catch (\Exception $e) {
+            // Si la columna no existe, registrar error pero no romper el sistema
+            error_log("Error updating webhook_timestamp: " . $e->getMessage());
+            return false;
+        }
     }
 }

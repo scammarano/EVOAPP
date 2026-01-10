@@ -1,9 +1,42 @@
 <?php
 use App\Core\Auth;
 $title = 'Diagnostic - ' . APP_NAME;
+
+// VERSIÓN DE LA VISTA
+$view_version = '1.5';
+$view_modified = '2025-01-10 16:30:00';
+$view_features = ['Send Mode Selector', 'Enhanced UI', 'State Persistence'];
 ?>
 
 <div class="diagnostic-container">
+    <!-- PANEL DE VERSIONES - ESQUINA SUPERIOR DERECHA -->
+    <div class="version-panel" style="position: fixed; top: 10px; right: 10px; background: #ff6b6b; border: 3px solid #ff0000; border-radius: 8px; padding: 10px; font-size: 11px; z-index: 9999; box-shadow: 0 2px 10px rgba(255,0,0,0.5); min-width: 300px;">
+        <h4 style="margin: 0 0 6px 0; color: #ffffff; font-size: 12px;">📋 VERSIONES DEL SISTEMA:</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+            <div style="background: white; padding: 5px; border-radius: 4px;">
+                <strong>🎛️ Controlador:</strong><br>
+                v<?= $controller_version ?? 'N/A' ?><br>
+                <small><?= $controller_modified ?? 'N/A' ?></small><br>
+                <small><?= implode(', ', $controller_features ?? []) ?></small>
+            </div>
+            <div style="background: white; padding: 5px; border-radius: 4px;">
+                <strong>📄 Vista:</strong><br>
+                v<?= $view_version ?><br>
+                <small><?= $view_modified ?></small><br>
+                <small><?= implode(', ', $view_features) ?></small>
+            </div>
+            <div style="background: white; padding: 5px; border-radius: 4px;">
+                <strong>🔧 MessageSender:</strong><br>
+                v<?= \App\Core\MessageSender::MODEL_VERSION ?? 'N/A' ?><br>
+                <small><?= \App\Core\MessageSender::LAST_MODIFIED ?? 'N/A' ?></small><br>
+                <small><?= implode(', ', \App\Core\MessageSender::FEATURES ?? []) ?></small>
+            </div>
+        </div>
+        <div style="margin-top: 8px; background: yellow; padding: 5px; border-radius: 4px; text-align: center; font-weight: bold;">
+            ⚠️ SI VES ESTE PANEL - ARCHIVO ACTUALIZADO ⚠️
+        </div>
+    </div>
+    
     <div class="diagnostic-header">
         <div class="diagnostic-logo" aria-hidden="true">EVO</div>
         <div>
@@ -16,7 +49,7 @@ $title = 'Diagnostic - ' . APP_NAME;
         <div class="test-config">
             <div class="form-group">
                 <label>Número para todas las pruebas:</label>
-                <input type="text" id="global-test-number" value="+10000000000" placeholder="+584143238051">
+                <input type="text" id="global-test-number" value="+584143238051" placeholder="+584143238051">
             </div>
             <div class="form-group">
                 <label>Mensaje de prueba:</label>
@@ -28,6 +61,13 @@ $title = 'Diagnostic - ' . APP_NAME;
                     <option value="single">📤 Mensaje Simple</option>
                     <option value="burst">⚡ Ráfaga (3 mensajes)</option>
                     <option value="media">📎 Mensaje con Adjunto</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Modo de envío con adjunto:</label>
+                <select id="send-mode">
+                    <option value="media_only">📎 Solo imagen + caption</option>
+                    <option value="media_with_text">📎 Imagen + caption + texto</option>
                 </select>
             </div>
             <div class="form-group media-only">
@@ -120,11 +160,18 @@ $title = 'Diagnostic - ' . APP_NAME;
             <div class="modal-body">
                 <div class="form-group">
                     <label>Número de prueba:</label>
-                    <input type="text" id="test-number" value="+10000000000" placeholder="+584143238051">
+                    <input type="text" id="test-number" value="+584143238051" placeholder="+584143238051">
                 </div>
                 <div class="form-group">
                     <label>Mensaje de prueba:</label>
                     <textarea id="test-text" rows="3">Mensaje de prueba - EVOAPP Diagnostic</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Modo de envío:</label>
+                    <select id="test-send-mode">
+                        <option value="media_only">📎 Solo imagen + caption</option>
+                        <option value="media_with_text">📎 Imagen + caption + texto</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Archivo adjunto:</label>
@@ -465,6 +512,22 @@ $title = 'Diagnostic - ' . APP_NAME;
 .media-only.is-visible {
     display: block;
 }
+
+.send-mode-group {
+    display: none;
+}
+
+.send-mode-group.is-visible {
+    display: block;
+}
+
+.text-with-media {
+    display: none;
+}
+
+.text-with-media.is-visible {
+    display: block;
+}
 </style>
 
 <script>
@@ -481,6 +544,7 @@ function getDiagnosticState() {
         text: document.getElementById('global-test-text')?.value || '',
         testType: document.getElementById('test-type')?.value || 'single',
         caption: document.getElementById('global-test-caption')?.value || '',
+        sendMode: document.getElementById('send-mode')?.value || 'media_only',
         selectedInstanceIds: getSelectedInstanceIds()
     };
 }
@@ -510,6 +574,9 @@ function restoreDiagnosticState() {
         }
         if (state.caption) {
             document.getElementById('global-test-caption').value = state.caption;
+        }
+        if (state.sendMode) {
+            document.getElementById('send-mode').value = state.sendMode;
         }
         if (Array.isArray(state.selectedInstanceIds)) {
             document.querySelectorAll('.instance-checkbox').forEach(checkbox => {
@@ -547,13 +614,17 @@ function updateMediaFieldsVisibility() {
     });
 }
 
+function updateSendModeVisibility() {
+    const isTextWithMedia = document.getElementById('send-mode')?.value === 'text_with_media';
+    document.querySelectorAll('.text-with-media').forEach(element => {
+        element.classList.toggle('is-visible', isTextWithMedia);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initDiagnosticStateHandlers();
     updateMediaFieldsVisibility();
-    const testTypeSelect = document.getElementById('test-type');
-    if (testTypeSelect) {
-        testTypeSelect.addEventListener('change', updateMediaFieldsVisibility);
-    }
+    updateSendModeVisibility();
 });
 
 function testInstance(instanceId) {
@@ -564,9 +635,10 @@ function testInstance(instanceId) {
     const text = document.getElementById('global-test-text').value;
     const testType = document.getElementById('test-type').value;
     const caption = document.getElementById('global-test-caption').value;
+    const sendMode = document.getElementById('send-mode').value;
     const mediaFile = document.getElementById('global-test-media').files[0] || null;
     
-    console.log('Enviando petición:', { instanceId, number, text, testType });
+    console.log('Enviando petición:', { instanceId, number, text, testType, sendMode });
 
     let requestBody;
     let requestHeaders = {};
@@ -578,12 +650,13 @@ function testInstance(instanceId) {
         requestBody.append('test_text', text);
         requestBody.append('test_type', testType);
         requestBody.append('test_caption', caption);
+        requestBody.append('send_mode', sendMode);
         if (mediaFile) {
             requestBody.append('test_media', mediaFile);
         }
     } else {
         requestHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
-        requestBody = `instance_id=${instanceId}&test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}&test_type=${testType}`;
+        requestBody = `instance_id=${instanceId}&test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}&test_type=${testType}&send_mode=${sendMode}`;
     }
 
     fetch('index.php?r=diagnostic/testInstance', {
@@ -625,6 +698,7 @@ function sendTestMessage() {
     const caption = document.getElementById('test-caption').value;
     const mediaFile = document.getElementById('test-media').files[0] || null;
     const testType = mediaFile ? 'media' : 'single';
+    const sendMode = document.getElementById('test-send-mode').value;
     
     updateStatus(currentInstanceId, 'testing', 'Enviando...');
     closeModal();
@@ -639,12 +713,13 @@ function sendTestMessage() {
         requestBody.append('test_text', text);
         requestBody.append('test_type', testType);
         requestBody.append('test_caption', caption);
+        requestBody.append('send_mode', sendMode);
         if (mediaFile) {
             requestBody.append('test_media', mediaFile);
         }
     } else {
         requestHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
-        requestBody = `instance_id=${currentInstanceId}&test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}`;
+        requestBody = `instance_id=${currentInstanceId}&test_number=${encodeURIComponent(number)}&test_text=${encodeURIComponent(text)}&send_mode=${sendMode}`;
     }
 
     fetch('index.php?r=diagnostic/testInstance', {
