@@ -5,7 +5,9 @@ use App\Models\Instance;
 $title = 'Inbox - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
 
 // Obtener estadísticas de la instancia
-$selectedInstanceStats = Instance::getStatsByInstance($instance['id']) ?? [
+$statsResult = Instance::getStatsByInstance($instance['id']);
+$statsError = ($statsResult['status'] ?? 'error') === 'ok' ? null : ($statsResult['message'] ?? 'No se pudieron cargar las estadísticas.');
+$selectedInstanceStats = $statsResult['data'] ?? [
     'chat_count' => 0,
     'message_count' => 0,
     'total_unread' => 0,
@@ -74,6 +76,11 @@ if ($instanceProfile) {
     
     <!-- Estadísticas Compactas -->
     <div class="instance-stats">
+        <?php if (!empty($statsError)): ?>
+            <div class="alert alert-error" style="margin-bottom: 0.75rem; width: 100%;">
+                <?= $viewHelper->escape($statsError) ?>
+            </div>
+        <?php endif; ?>
         <div class="stat-card instance-stat-card">
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span style="font-size: 1.5rem;">💬</span>

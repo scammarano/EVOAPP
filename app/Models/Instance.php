@@ -6,6 +6,7 @@ use App\Core\DB;
 class Instance
 {
     private static $resolvedTable = null;
+    private const STATS_TABLES = ['chats', 'messages'];
 
     public static function tableName()
     {
@@ -106,7 +107,16 @@ class Instance
     public static function getStats()
     {
         $table = self::tableName();
-        
+        $missingTables = self::getMissingStatsTables($table);
+        if (!empty($missingTables)) {
+            return [
+                'status' => 'error',
+                'code' => 'missing_tables',
+                'message' => 'Faltan tablas requeridas para estadísticas: ' . implode(', ', $missingTables) . '.',
+                'data' => []
+            ];
+        }
+
         try {
             // Enhanced query with real stats
             $sql = "
@@ -117,27 +127,78 @@ class Instance
                 FROM {$table} i
                 ORDER BY i.slug
             ";
-            
-            return DB::fetchAll($sql);
+
+            return [
+                'status' => 'ok',
+                'data' => DB::fetchAll($sql)
+            ];
             
         } catch (\Exception $e) {
-            // If tables don't exist, return empty stats
-            return [];
+            error_log('Instance::getStats failed: ' . $e->getMessage());
+            return [
+                'status' => 'error',
+                'code' => 'exception',
+                'message' => 'No se pudieron cargar las estadísticas de instancias.',
+                'data' => []
+            ];
         }
     }
 
     public static function getStatsByInstance($instanceId)
     {
+        $table = self::tableName();
+        $missingTables = self::getMissingStatsTables($table);
+        if (!empty($missingTables)) {
+            return [
+                'status' => 'error',
+                'code' => 'missing_tables',
+                'message' => 'Faltan tablas requeridas para estadísticas: ' . implode(', ', $missingTables) . '.',
+                'data' => null
+            ];
+        }
+
         try {
-            return DB::fetch("
+            $stats = DB::fetch("
                 SELECT
                     (SELECT COUNT(*) FROM chats WHERE instance_id = ?) as chat_count,
                     (SELECT COUNT(*) FROM messages m JOIN chats c ON m.chat_id = c.id WHERE c.instance_id = ?) as message_count,
                     COALESCE((SELECT SUM(unread_count) FROM chats WHERE instance_id = ?), 0) as total_unread
             ", [$instanceId, $instanceId, $instanceId]);
+
+            return [
+                'status' => 'ok',
+                'data' => $stats
+            ];
         } catch (\Exception $e) {
-            return null;
+            error_log('Instance::getStatsByInstance failed for instance ' . $instanceId . ': ' . $e->getMessage());
+            return [
+                'status' => 'error',
+                'code' => 'exception',
+                'message' => 'No se pudieron cargar las estadísticas de la instancia.',
+                'data' => null
+            ];
         }
+    }
+
+    private static function getMissingStatsTables($instanceTable)
+    {
+        $requiredTables = array_merge([$instanceTable], self::STATS_TABLES);
+        $missing = [];
+
+        foreach ($requiredTables as $table) {
+            $result = DB::fetch("
+                SELECT COUNT(*) as count
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = ?
+            ", [$table]);
+
+            if ((int)($result['count'] ?? 0) === 0) {
+                $missing[] = $table;
+            }
+        }
+
+        return $missing;
     }
     
     public static function getInstanceProfile($instanceId)

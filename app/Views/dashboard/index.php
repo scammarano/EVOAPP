@@ -8,6 +8,12 @@ $title = 'Dashboard - ' . APP_NAME;
         <h1 class="dashboard-title">Dashboard</h1>
         <p class="dashboard-subtitle">Welcome back, <?= $viewHelper->escape($user['name']) ?>!</p>
     </div>
+
+    <?php if (!empty($statsError)): ?>
+        <div class="alert alert-error" style="margin-bottom: 1rem;">
+            <?= $viewHelper->escape($statsError) ?>
+        </div>
+    <?php endif; ?>
     
     <!-- Global Stats -->
     <div class="stats-grid">
