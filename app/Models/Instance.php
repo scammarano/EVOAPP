@@ -92,10 +92,21 @@ class Instance
         $table = self::tableName();
         $sql = "SELECT * FROM {$table}";
         $params = [];
-        
-        // For now, return all instances (we'll add permissions later)
-        if ($userId) {
-            // TODO: Add user permissions logic
+
+        // ACL model:
+        // - Users with the "admin" role can see all instances.
+        // - Non-admin users are scoped by user_instances (instance-level ACL).
+        if ($userId !== null) {
+            $roles = User::getRoles($userId);
+            if (!in_array('admin', $roles, true)) {
+                $sql = "
+                    SELECT i.*
+                    FROM {$table} i
+                    JOIN user_instances ui ON ui.instance_id = i.id
+                    WHERE ui.user_id = ? AND ui.can_view = 1
+                ";
+                $params = [(int)$userId];
+            }
         }
         
         $sql .= " ORDER BY slug";
