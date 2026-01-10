@@ -139,16 +139,16 @@ class InboxController
             return;
         }
 
-        $stats = Instance::getStatsByInstance($instance['id']);
+        $statsResult = Instance::getStatsByInstance($instance['id']);
 
-        if (!$stats) {
-            echo json_encode(['error' => 'Stats unavailable']);
+        if (($statsResult['status'] ?? 'error') !== 'ok') {
+            echo json_encode(['error' => $statsResult['message'] ?? 'Stats unavailable']);
             return;
         }
 
         echo json_encode([
             'success' => true,
-            'stats' => $stats
+            'stats' => $statsResult['data']
         ]);
     }
     

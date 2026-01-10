@@ -13,7 +13,9 @@ class DashboardController
         $instances = Instance::getAccessibleInstances($user['id']);
         
         // Get instance stats directly
-        $instanceStats = Instance::getStats();
+        $statsResult = Instance::getStats();
+        $instanceStats = $statsResult['data'] ?? [];
+        $statsError = ($statsResult['status'] ?? 'error') === 'ok' ? null : ($statsResult['message'] ?? 'No se pudieron cargar las estadísticas.');
         
         // Calculate global stats
         $globalStats = [
@@ -35,6 +37,7 @@ class DashboardController
         View::set('instances', $instances);
         View::set('globalStats', $globalStats);
         View::set('instanceStats', $instanceStats);
+        View::set('statsError', $statsError);
         
         View::render('dashboard/index');
     }
