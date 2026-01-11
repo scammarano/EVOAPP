@@ -8,6 +8,14 @@ class DB
 {
     private static $pdo = null;
     
+    public static function getInstance()
+    {
+        if (self::$pdo === null) {
+            self::init();
+        }
+        return self::$pdo;
+    }
+    
     public static function init()
     {
         if (self::$pdo === null) {
@@ -27,7 +35,7 @@ class DB
     public static function q($sql, $params = [])
     {
         try {
-            $stmt = self::$pdo->prepare($sql);
+            $stmt = self::getInstance()->prepare($sql);
             $stmt->execute($params);
             return $stmt;
         } catch (PDOException $e) {
@@ -50,22 +58,22 @@ class DB
     
     public static function lastInsertId()
     {
-        return self::$pdo->lastInsertId();
+        return self::getInstance()->lastInsertId();
     }
     
     public static function beginTransaction()
     {
-        return self::$pdo->beginTransaction();
+        return self::getInstance()->beginTransaction();
     }
     
     public static function commit()
     {
-        return self::$pdo->commit();
+        return self::getInstance()->commit();
     }
     
     public static function rollback()
     {
-        return self::$pdo->rollback();
+        return self::getInstance()->rollback();
     }
     
     public static function escape($string)
@@ -77,12 +85,25 @@ class DB
     {
         $result = self::fetch("
             SELECT COUNT(*) as count
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = ?
-              AND COLUMN_NAME = ?
+            FROM information_schema.columns 
+            WHERE table_schema = DATABASE() 
+            AND table_name = ? 
+            AND column_name = ?
         ", [$table, $column]);
-
-        return (int)($result['count'] ?? 0) > 0;
+        
+        return $result['count'] > 0;
+    }
+    
+    public static function tableExists($table)
+    {
+        $result = self::fetch("
+            SELECT COUNT(*) as count
+            FROM information_schema.tables 
+            WHERE table_schema = DATABASE() 
+            AND table_name = ?
+        ", [$table]);
+        
+        return $result['count'] > 0;
     }
 }
+?>

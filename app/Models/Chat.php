@@ -13,10 +13,20 @@ class Chat
             return self::$contactJoinConfig;
         }
 
-        $hasProfilePic = DB::columnExists('contacts', 'profile_pic_url');
-        $hasName = DB::columnExists('contacts', 'name');
-        $hasPhone = DB::columnExists('contacts', 'phone');
-        $hasPhoneE164 = DB::columnExists('contacts', 'phone_e164');
+        // Usar TRY-CATCH para manejar el método columnExists()
+        try {
+            $hasProfilePic = DB::columnExists('contacts', 'profile_pic_url');
+            $hasName = DB::columnExists('contacts', 'name');
+            $hasPhone = DB::columnExists('contacts', 'phone');
+            $hasPhoneE164 = DB::columnExists('contacts', 'phone_e164');
+        } catch (Exception $e) {
+            // Si columnExists no funciona, asumir valores por defecto
+            error_log("columnExists method failed: " . $e->getMessage() . " - using defaults");
+            $hasProfilePic = true;
+            $hasName = false;
+            $hasPhone = true;
+            $hasPhoneE164 = false;
+        }
 
         $joinConditions = [];
 

@@ -1,7 +1,7 @@
 <?php
 namespace App\Models;
 
-use App\Core\Database;
+use App\Core\DB;
 
 class Contact
 {
@@ -9,10 +9,11 @@ class Contact
     
     public function __construct()
     {
-        $this->db = Database::getInstance();
+        $this->db = DB::getInstance();
     }
     
-    public function getAll($limit = 20, $offset = 0, $search = '')
+    // Métodos de instancia
+    public function getAllInstance($limit = 20, $offset = 0, $search = '')
     {
         $sql = "SELECT * FROM contacts";
         $params = [];
@@ -94,9 +95,10 @@ class Contact
         return $stmt->execute([$id]);
     }
     
-        
+    // Métodos estáticos
     public static function getAll($instanceId, $page = 1, $limit = 20, $search = null)
     {
+        $db = DB::getInstance();
         $offset = ($page - 1) * $limit;
         
         $sql = "SELECT * FROM contacts WHERE instance_id = ?";
@@ -112,11 +114,12 @@ class Contact
         $params[] = $limit;
         $params[] = $offset;
         
-        return DB::fetchAll($sql, $params);
+        return $db->fetchAll($sql, $params);
     }
     
     public static function count($instanceId, $search = null)
     {
+        $db = DB::getInstance();
         $sql = "SELECT COUNT(*) as count FROM contacts WHERE instance_id = ?";
         $params = [$instanceId];
         
@@ -126,19 +129,23 @@ class Contact
             $params = array_merge($params, [$searchParam, $searchParam, $searchParam, $searchParam]);
         }
         
-        return DB::fetch($sql, $params)['count'];
+        return $db->fetch($sql, $params)['count'];
     }
     
-    public static function delete($id)
+    public static function deleteById($id)
     {
-        DB::q("DELETE FROM contacts WHERE id = ?", [$id]);
+        $db = DB::getInstance();
+        $sql = "DELETE FROM contacts WHERE id = ?";
+        $stmt = $db->prepare($sql);
+        return $stmt->execute([$id]);
     }
     
     public static function getFromList($listId, $page = 1, $limit = 20)
     {
+        $db = DB::getInstance();
         $offset = ($page - 1) * $limit;
         
-        return DB::fetchAll("
+        return $db->fetchAll("
             SELECT c.* 
             FROM contacts c
             JOIN contact_list_items cli ON c.id = cli.contact_id
@@ -150,7 +157,8 @@ class Contact
     
     public static function countFromList($listId)
     {
-        return DB::fetch("
+        $db = DB::getInstance();
+        return $db->fetch("
             SELECT COUNT(*) as count
             FROM contact_list_items cli
             WHERE cli.list_id = ?
@@ -236,7 +244,8 @@ class Contact
     
     public static function getStats($instanceId)
     {
-        return DB::fetch("
+        $db = DB::getInstance();
+        return $db->fetch("
             SELECT 
                 COUNT(*) as total_contacts,
                 COUNT(CASE WHEN name IS NOT NULL AND name != '' THEN 1 END) as with_name,
@@ -251,6 +260,7 @@ class Contact
     // Contact sync methods
     public static function createOrUpdateFromWhatsApp($contactData, $instanceId)
     {
+        $db = DB::getInstance();
         $table = 'contacts';
         
         // Extract contact data from WhatsApp format
@@ -271,7 +281,8 @@ class Contact
                         updated_at = NOW() 
                     WHERE id = ?";
             
-            DB::q($sql, [
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
                 $name,
                 $profilePicUrl,
                 $isWhatsAppUser,
@@ -284,7 +295,8 @@ class Contact
             $sql = "INSERT INTO {$table} (instance_id, phone, name, profile_pic_url, is_whatsapp_user, is_active, created_at, updated_at) 
                     VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())";
             
-            DB::q($sql, [
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
                 $instanceId,
                 $phone,
                 $name,
@@ -292,12 +304,13 @@ class Contact
                 $isWhatsAppUser
             ]);
             
-            return ['created' => true, 'id' => DB::lastInsertId()];
+            return ['created' => true, 'id' => $db->lastInsertId()];
         }
     }
     
     public static function createOrUpdateGroupFromWhatsApp($groupData, $instanceId)
     {
+        $db = DB::getInstance();
         $table = 'contacts';
         
         // Extract group data from WhatsApp format
@@ -319,7 +332,8 @@ class Contact
                         updated_at = NOW() 
                     WHERE id = ?";
             
-            DB::q($sql, [
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
                 $name,
                 $profilePicUrl,
                 $participantCount,
@@ -332,7 +346,8 @@ class Contact
             $sql = "INSERT INTO {$table} (instance_id, phone, name, profile_pic_url, is_group, participant_count, is_active, created_at, updated_at) 
                     VALUES (?, ?, ?, ?, ?, ?, 1, NOW(), NOW())";
             
-            DB::q($sql, [
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
                 $instanceId,
                 $phone,
                 $name,
@@ -341,12 +356,13 @@ class Contact
                 $participantCount
             ]);
             
-            return ['created' => true, 'id' => DB::lastInsertId()];
+            return ['created' => true, 'id' => $db->lastInsertId()];
         }
     }
     
     public static function getSyncStats($instanceId)
     {
+        $db = DB::getInstance();
         $table = 'contacts';
         $sql = "SELECT 
                     COUNT(*) as total_contacts,
@@ -355,6 +371,81 @@ class Contact
                  FROM {$table} 
                  WHERE instance_id = ?";
         
-        return DB::fetch($sql, [$instanceId]);
+        return $db->fetch($sql, [$instanceId]);
+    }
+    
+    public static function findByPhone($phone)
+    {
+        $db = DB::getInstance();
+        $sql = "SELECT * FROM contacts WHERE phone = ? OR phone_e164 = ?";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$phone, $phone]);
+        return $stmt->fetch();
+    }
+    
+    public static function createOrUpdate($contact)
+    {
+        $db = DB::getInstance();
+        
+        // Check if contact exists by remote_jid or phone
+        $sql = "SELECT id FROM contacts WHERE remote_jid = ? OR phone_e164 = ?";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$contact['remote_jid'] ?? '', $contact['phone_e164'] ?? '']);
+        $existing = $stmt->fetch();
+        
+        if ($existing) {
+            // Update existing contact
+            $updateFields = [];
+            $updateParams = [];
+            
+            if (!empty($contact['name'])) {
+                $updateFields[] = "name = ?";
+                $updateParams[] = $contact['name'];
+            }
+            
+            if (!empty($contact['push_name'])) {
+                $updateFields[] = "push_name = ?";
+                $updateParams[] = $contact['push_name'];
+            }
+            
+            if (!empty($contact['email'])) {
+                $updateFields[] = "email = ?";
+                $updateParams[] = $contact['email'];
+            }
+            
+            if (!empty($contact['company'])) {
+                $updateFields[] = "company = ?";
+                $updateParams[] = $contact['company'];
+            }
+            
+            if (!empty($updateFields)) {
+                $updateFields[] = "updated_at = NOW()";
+                $updateParams[] = $existing['id'];
+                
+                $sql = "UPDATE contacts SET " . implode(', ', $updateFields) . " WHERE id = ?";
+                $stmt = $db->prepare($sql);
+                $stmt->execute($updateParams);
+            }
+            
+            return $existing['id'];
+        } else {
+            // Insert new contact
+            $sql = "INSERT INTO contacts (instance_id, phone_e164, name, push_name, remote_jid, email, company, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+            
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                $contact['instance_id'] ?? 1,
+                $contact['phone_e164'] ?? '',
+                $contact['name'] ?? '',
+                $contact['push_name'] ?? '',
+                $contact['remote_jid'] ?? '',
+                $contact['email'] ?? '',
+                $contact['company'] ?? ''
+            ]);
+            
+            return $db->lastInsertId();
+        }
     }
 }
+?>

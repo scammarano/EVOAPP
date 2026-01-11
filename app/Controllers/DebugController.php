@@ -199,7 +199,7 @@ class DebugController
     private function getRecentErrors($instanceId = null)
     {
         $sql = "
-            SELECT 'webhook' as source, error_text, created_at
+            SELECT 'webhook' as source, error_message as error_text, created_at
             FROM webhook_events
             WHERE status = 'error'
         ";

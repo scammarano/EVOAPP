@@ -89,7 +89,7 @@ class LogsController
                     processed_at,
                     error_message,
                     retry_count,
-                    data
+                    payload_json as data
                 FROM webhook_events 
                 WHERE status = 'pending' OR status = 'failed'
                 ORDER BY created_at DESC 

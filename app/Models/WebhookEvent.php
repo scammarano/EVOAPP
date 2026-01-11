@@ -39,7 +39,7 @@ class WebhookEvent
         if ($error) {
             DB::q("
                 UPDATE webhook_events 
-                SET status = 'error', processed_at = NOW(), error_text = ?
+                SET status = 'error', processed_at = NOW(), error_message = ?
                 WHERE id = ?
             ", [$error, $id]);
         } else {
@@ -117,6 +117,6 @@ class WebhookEvent
     
     public static function reprocess($id)
     {
-        DB::q("UPDATE webhook_events SET status = 'pending', processed_at = NULL, error_text = NULL WHERE id = ?", [$id]);
+        DB::q("UPDATE webhook_events SET status = 'pending', processed_at = NULL, error_message = NULL WHERE id = ?", [$id]);
     }
 }

@@ -640,7 +640,7 @@ class Instance
         $params = [$status, $status ? 'NOW()' : null];
         
         if ($errorText) {
-            $fields[] = 'error_text = ?';
+            $fields[] = 'error_message = ?';
             $params[] = $errorText;
         }
         

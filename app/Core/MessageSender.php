@@ -14,8 +14,8 @@ class MessageSender
     const MODEL_VERSION = '1.0';
     const LAST_MODIFIED = '2025-01-10 16:30:00';
     const FEATURES = ['Centralized Sending', 'Phone Validation', 'Media Support', 'Burst Mode'];
-    private $instance;
-    private $client;
+    public $instance;
+    public $client;
     
     public function __construct($instance)
     {
