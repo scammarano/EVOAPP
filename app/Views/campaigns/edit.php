@@ -257,8 +257,19 @@ $campaign = $campaign ?? [];
         </div>
 
         <div class="form-group" id="monthly-fields" style="display: <?= ($data['schedule_type'] ?? $campaign['schedule_type'] ?? '') === 'monthly' ? 'block' : 'none' ?>;">
-            <label class="form-label">Día del mes</label>
-            <input class="form-input" id="monthly_day" name="monthly_day" type="number" min="1" max="31" value="<?= $data['monthly_day'] ?? $campaign['monthly_day'] ?? '' ?>">
+            <label class="form-label">Tipo de programación mensual</label>
+            <select class="form-input" id="monthly_type" name="monthly_type" onchange="toggleMonthlyDayInput()">
+                <option value="day" <?= ($data['monthly_type'] ?? $campaign['monthly_day'] ?? '') === 'day' || is_numeric($data['monthly_day'] ?? $campaign['monthly_day'] ?? '') ? 'selected' : '' ?>>Día específico del mes</option>
+                <option value="first_day" <?= ($data['monthly_type'] ?? $campaign['monthly_day'] ?? '') === 'first_day' ? 'selected' : '' ?>>Primer día del mes</option>
+                <option value="first_weekday" <?= ($data['monthly_type'] ?? $campaign['monthly_day'] ?? '') === 'first_weekday' ? 'selected' : '' ?>>Primer día laborable del mes</option>
+                <option value="first_fortnight" <?= ($data['monthly_type'] ?? $campaign['monthly_day'] ?? '') === 'first_fortnight' ? 'selected' : '' ?>>Primer día laborable de la primera quincena (1-5)</option>
+                <option value="second_fortnight" <?= ($data['monthly_type'] ?? $campaign['monthly_day'] ?? '') === 'second_fortnight' ? 'selected' : '' ?>>Primer día laborable de la segunda quincena (después del 15)</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="monthly-day-group" style="display: <?= ($data['monthly_type'] ?? $campaign['monthly_day'] ?? '') === 'day' || is_numeric($data['monthly_day'] ?? $campaign['monthly_day'] ?? '') ? 'block' : 'none' ?>;">
+            <label class="form-label">Día del mes (1-31)</label>
+            <input class="form-input" id="monthly_day" name="monthly_day" type="number" min="1" max="31" value="<?= is_numeric($data['monthly_day'] ?? $campaign['monthly_day'] ?? '') ? ($data['monthly_day'] ?? $campaign['monthly_day'] ?? '') : '' ?>">
         </div>
 
         <div class="form-group" id="daily-fields" style="display: <?= ($data['schedule_type'] ?? $campaign['schedule_type'] ?? '') === 'daily' ? 'block' : 'none' ?>;">
@@ -338,6 +349,15 @@ function showScheduleFields(type) {
     }
     if (dailyFields) {
         dailyFields.style.display = type === 'daily' ? 'block' : 'none';
+    }
+}
+
+function toggleMonthlyDayInput() {
+    const monthlyType = document.getElementById('monthly_type');
+    const monthlyDayGroup = document.getElementById('monthly-day-group');
+    
+    if (monthlyType && monthlyDayGroup) {
+        monthlyDayGroup.style.display = monthlyType.value === 'day' ? 'block' : 'none';
     }
 }
 

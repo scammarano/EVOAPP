@@ -92,9 +92,34 @@ $title = 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
                                                 }
                                                 echo ' (' . implode(', ', $dayLabels) . ')';
                                             }
+                                            if ($campaign['daily_time']) {
+                                                echo ' at ' . substr($campaign['daily_time'], 0, 5);
+                                            }
+                                            break;
+                                        case 'daily':
+                                            echo 'Daily';
+                                            if ($campaign['daily_time']) {
+                                                echo ' at ' . substr($campaign['daily_time'], 0, 5);
+                                            }
                                             break;
                                         case 'monthly':
-                                            echo 'Monthly (Day ' . $campaign['monthly_day'] . ')';
+                                            $monthlyLabels = [
+                                                'first_day' => 'First day',
+                                                'first_weekday' => 'First weekday',
+                                                'first_fortnight' => 'First fortnight (1-5)',
+                                                'second_fortnight' => 'Second fortnight (after 15th)'
+                                            ];
+                                            
+                                            if (isset($monthlyLabels[$campaign['monthly_day']])) {
+                                                echo 'Monthly (' . $monthlyLabels[$campaign['monthly_day']] . ')';
+                                            } elseif (is_numeric($campaign['monthly_day'])) {
+                                                echo 'Monthly (Day ' . $campaign['monthly_day'] . ')';
+                                            } else {
+                                                echo 'Monthly';
+                                            }
+                                            if ($campaign['daily_time']) {
+                                                echo ' at ' . substr($campaign['daily_time'], 0, 5);
+                                            }
                                             break;
                                         default:
                                             echo $viewHelper->escape($campaign['schedule_type']);
@@ -133,6 +158,13 @@ $title = 'Campaigns - ' . ($instance['slug'] ?? '') . ' - ' . APP_NAME;
                                            class="btn btn-secondary btn-sm" title="Edit">
                                             ✏️
                                         </a>
+                                    <?php endif; ?>
+                                    
+                                    <?php if (Auth::hasPermission('campaigns.edit')): ?>
+                                        <button onclick="duplicateCampaign(<?= $viewHelper->escape($campaign['id']) ?>, '<?= $viewHelper->escape($campaign['name']) ?>')" 
+                                                class="btn btn-secondary btn-sm" title="Duplicate">
+                                            📋
+                                        </button>
                                     <?php endif; ?>
                                     
                                     <?php if (Auth::hasPermission('campaigns.edit')): ?>
@@ -220,6 +252,35 @@ function deleteCampaign(campaignId, campaignName) {
     .catch(error => {
         console.error('Error:', error);
         alert('An error occurred while deleting the campaign');
+    });
+}
+
+function duplicateCampaign(campaignId, campaignName) {
+    const newName = prompt(`Enter name for duplicated campaign:`, campaignName + ' (Copy)');
+    if (!newName) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('id', campaignId);
+    formData.append('name', newName);
+    
+    fetch('<?= $viewHelper->url('campaigns/duplicate') ?>', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Campaign duplicated successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while duplicating the campaign');
     });
 }
 </script>

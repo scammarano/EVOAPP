@@ -184,6 +184,20 @@ class Router
             }
         }
         
+        if ($route === 'campaigns/update') {
+            $id = $_GET['id'] ?? $_POST['id'] ?? null;
+            if ($id !== null) {
+                $params[] = (int)$id;
+            }
+        }
+        
+        if ($route === 'campaigns/duplicate') {
+            $id = $_GET['id'] ?? $_POST['id'] ?? null;
+            if ($id !== null) {
+                $params[] = (int)$id;
+            }
+        }
+        
         return $params;
     }
 }

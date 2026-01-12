@@ -104,6 +104,24 @@ class CampaignsController
             'created_by' => $user['id']
         ];
 
+        // Handle monthly type
+        $monthlyType = $_POST['monthly_type'] ?? 'day';
+        if ($monthlyType !== 'day') {
+            // For special monthly types, store the type instead of numeric day
+            $data['monthly_day'] = $monthlyType;
+        }
+
+        // Check if end_date is provided but end_time is empty
+        $hasEndDateWithoutTime = !empty($_POST['end_date']) && empty($_POST['end_time']);
+        $confirmationMessage = null;
+        
+        if ($hasEndDateWithoutTime) {
+            $maxDays = Campaign::getMaxCampaignDays();
+            $endDate = new \DateTime($_POST['end_date']);
+            $endDate->modify('+' . $maxDays . ' days');
+            $confirmationMessage = "Como no especificaste hora de fin, la campaña finalizará el {$endDate->format('d/m/Y')} a las 23:59 ({$maxDays} días después de la fecha de inicio).";
+        }
+
         // Combine date and time for database
         if (!empty($data['start_date']) && !empty($data['start_time'])) {
             $data['start_at'] = $data['start_date'] . ' ' . $data['start_time'];
@@ -168,10 +186,18 @@ class CampaignsController
             Auth::logAction('create_campaign', 'campaign', $campaignId, null, $data);
 
             if ($this->isAjaxRequest()) {
+                $message = 'Campaña creada correctamente';
+                if ($confirmationMessage) {
+                    $message .= '. ' . $confirmationMessage;
+                }
                 header('Content-Type: application/json');
-                echo json_encode(['success' => true, 'message' => 'Campaña creada correctamente', 'campaign_id' => $campaignId]);
+                echo json_encode(['success' => true, 'message' => $message, 'campaign_id' => $campaignId]);
             } else {
-                View::flash('success', 'Campaña creada correctamente');
+                $flashMessage = 'Campaña creada correctamente';
+                if ($confirmationMessage) {
+                    $flashMessage .= '. ' . $confirmationMessage;
+                }
+                View::flash('success', $flashMessage);
                 header('Location: index.php?r=campaigns/index&instance=' . urlencode($instance['slug']));
                 exit;
             }
@@ -267,13 +293,22 @@ class CampaignsController
             'monthly_day' => $_POST['monthly_day'] ?? null
         ];
 
-        // Combine date and time for database
-        if (!empty($data['start_date']) && !empty($data['start_time'])) {
-            $data['start_at'] = $data['start_date'] . ' ' . $data['start_time'];
+        // Handle monthly type
+        $monthlyType = $_POST['monthly_type'] ?? 'day';
+        if ($monthlyType !== 'day') {
+            // For special monthly types, store the type instead of numeric day
+            $data['monthly_day'] = $monthlyType;
         }
+
+        // Check if end_date is provided but end_time is empty
+        $hasEndDateWithoutTime = !empty($_POST['end_date']) && empty($_POST['end_time']);
+        $confirmationMessage = null;
         
-        if (!empty($data['end_date']) && !empty($data['end_time'])) {
-            $data['end_at'] = $data['end_date'] . ' ' . $data['end_time'];
+        if ($hasEndDateWithoutTime) {
+            $maxDays = Campaign::getMaxCampaignDays();
+            $endDate = new \DateTime($_POST['end_date']);
+            $endDate->modify('+' . $maxDays . ' days');
+            $confirmationMessage = "Como no especificaste hora de fin, la campaña finalizará el {$endDate->format('d/m/Y')} a las 23:59 ({$maxDays} días después de la fecha de inicio).";
         }
 
         // Combine date and time for database
@@ -325,10 +360,18 @@ class CampaignsController
             Auth::logAction('update_campaign', 'campaign', $id, $campaign, $data);
 
             if ($this->isAjaxRequest()) {
+                $message = 'Campaña actualizada correctamente';
+                if ($confirmationMessage) {
+                    $message .= '. ' . $confirmationMessage;
+                }
                 header('Content-Type: application/json');
-                echo json_encode(['success' => true, 'message' => 'Campaña actualizada correctamente']);
+                echo json_encode(['success' => true, 'message' => $message]);
             } else {
-                View::flash('success', 'Campaña actualizada correctamente');
+                $flashMessage = 'Campaña actualizada correctamente';
+                if ($confirmationMessage) {
+                    $flashMessage .= '. ' . $confirmationMessage;
+                }
+                View::flash('success', $flashMessage);
                 header('Location: index.php?r=campaigns/index&instance=' . urlencode($instance['slug']));
                 exit;
             }
@@ -346,6 +389,57 @@ class CampaignsController
                 View::set('instance', $instance);
                 View::render('campaigns/edit');
             }
+        }
+    }
+
+    public function duplicate()
+    {
+        if (!Auth::hasPermission('campaigns.edit')) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+            return;
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        $campaign = Campaign::findById($id);
+
+        if (!$campaign) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Campaign not found']);
+            return;
+        }
+
+        $instance = Instance::findById($campaign['instance_id']);
+        if (!$instance || !Auth::canViewInstance($instance['id'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+            return;
+        }
+
+        try {
+            $newName = $_POST['name'] ?? null;
+            $newCampaignId = Campaign::duplicate($id, $newName);
+            
+            if ($newCampaignId) {
+                // Log action
+                Auth::logAction('duplicate_campaign', 'campaign', $newCampaignId, null, [
+                    'original_id' => $id,
+                    'new_name' => $newName
+                ]);
+
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Campaña duplicada correctamente',
+                    'campaign_id' => $newCampaignId
+                ]);
+            } else {
+                throw new \Exception('Error al duplicar campaña');
+            }
+
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Error al duplicar campaña: ' . $e->getMessage()]);
         }
     }
 
